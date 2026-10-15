@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2E5A47">
+<meta name="description" content="hausbuch. – Buchhaltung für deine Immobilien">
+<title>hausbuch.</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --green: #2E5A47; --green-mid: #3E8E5F; --beige: #D8C7A8;
+    --nav-bg: #E6F3EE; --card: #F4F5F3; --bg: #FAFAF8;
+    --red: #C25B4A; --amber: #C89B3C; --gray: #9AA3A0;
+    --text: #1f2937; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  button, input, select, textarea { font-family: inherit; font-size: 1rem; }
+  button { cursor: pointer; border: none; background: none; }
+
+  /* ---------- Sidebar (Desktop) ---------- */
+  #sidebar { display: none; }
+  #bottomnav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; display: flex;
+    background: #fff; border-top: 1px solid #f1f5f9; padding-bottom: env(safe-area-inset-bottom); }
+  #bottomnav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 0 6px; font-size: 10px; font-weight: 500; text-decoration: none; color: var(--muted);
+    border-top: 3px solid transparent; }
+  #bottomnav a.active { color: var(--green); border-top-color: var(--green); }
+  #bottomnav svg { width: 22px; height: 22px; }
+
+  /* ---------- Layout ---------- */
+  #main { max-width: 900px; margin: 0 auto; padding: 12px 14px 110px; }
+  header#topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.95); backdrop-filter: blur(6px); border-bottom: 1px solid #f1f5f9;
+    padding: 10px 14px; }
+  .logo { font-size: 19px; font-weight: 800; color: var(--green); margin-right: auto; }
+  .logo span { color: var(--green-mid); }
+  select.pill { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; background: #fff;
+    font-weight: 600; font-size: 13px; color: #334155; max-width: 150px; }
+  #fab { position: fixed; right: 16px; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 30;
+    width: 56px; height: 56px; border-radius: 50%; background: var(--green); color: #fff; font-size: 28px;
+    box-shadow: 0 8px 20px rgba(46,90,71,.4); display: flex; align-items: center; justify-content: center; }
+  #fab:active { background: var(--green-mid); }
+
+  /* ---------- Karten & Statistik ---------- */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat { background: var(--card); border-radius: 16px; padding: 14px; }
+  .stat.dark { background: var(--green); color: #fff; }
+  .stat .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+  .stat.dark .lbl { color: #A9C7BA; }
+  .stat .val { font-size: 19px; font-weight: 800; margin-top: 4px; }
+  .stat .sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+  .stat.dark .sub { color: #A9C7BA; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 12px; overflow: hidden; }
+  .card h3 { font-size: 13px; color: #64748b; font-weight: 600; padding: 14px 16px 8px; display: flex; align-items: center; gap: 6px; }
+  .warn { width: 100%; text-align: left; background: #FBEEEC; border: 1px solid var(--red); border-radius: 16px;
+    padding: 14px; margin-bottom: 12px; }
+  .warn b { color: var(--red); font-size: 13px; }
+  .warn span { display: block; font-size: 11px; color: #8f4a3e; margin-top: 2px; }
+
+  /* ---------- Charts ---------- */
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 150px; padding: 6px 12px 0; }
+  .chart .m { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .chart .bars { display: flex; align-items: flex-end; gap: 2px; width: 100%; height: 120px; }
+  .chart .b { border-radius: 4px 4px 0 0; min-width: 3px; flex: 1; }
+  .chart .b.in { background: var(--green-mid); }
+  .chart .b.out { background: var(--beige); }
+  .chart .mlabel { font-size: 9px; color: var(--muted); }
+  .hbar { margin: 0 16px 10px; }
+  .hbar .row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+  .hbar .row b { color: #334155; }
+  .hbar .track { height: 8px; border-radius: 99px; background: #f1f5f9; }
+  .hbar .fill { height: 8px; border-radius: 99px; background: var(--green-mid); }
+
+  /* ---------- Buchungen ---------- */
+  .flbl { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.04em; align-self:center; margin-right:2px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .filters input[type=search] { flex: 1; min-width: 140px; border: 1px solid #e2e8f0; border-radius: 99px;
+    padding: 7px 14px; font-size: 13px; background: #fff; }
+  .chip { border-radius: 99px; padding: 5px 12px; font-size: 12px; font-weight: 600; color: #64748b;
+    background: #fff; border: 1px solid #e2e8f0; }
+  .chip.on { background: var(--green); color: #fff; border-color: var(--green); }
+  .count { margin-left: auto; font-size: 11px; color: var(--muted); background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 99px; padding: 3px 10px; }
+  .bkrow { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f8fafc; }
+  .bkrow:last-child { border-bottom: none; }
+  .bkthumb { width: 42px; height: 42px; border-radius: 10px; border: 1px solid #e2e8f0; object-fit: cover; flex-shrink: 0; }
+  .bkicon { width: 42px; height: 42px; border-radius: 10px; background: var(--card); color: var(--muted);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bkicon.in { background: var(--nav-bg); color: var(--green); }
+  .bkicon svg { width: 18px; height: 18px; }
+  .bkmain { flex: 1; min-width: 0; }
+  .bkmain .t { font-size: 14px; font-weight: 700; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bkmain .d { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bkamount { font-size: 14px; font-weight: 800; color: #334155; white-space: nowrap; }
+  .bkamount.pos { color: var(--green-mid); }
+  .taxpill { font-size: 9px; font-weight: 700; color: #fff; border-radius: 99px; padding: 2px 7px; flex-shrink: 0; }
+  .bkactions { display: flex; flex-direction: column; gap: 2px; }
+  .bkactions .iconbtn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--muted); }
+  .bkactions .iconbtn svg { width: 15px; height: 15px; }
+  .bkactions .iconbtn:active { background: #f1f5f9; }
+
+  /* ---------- Belege-Galerie ---------- */
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gcard { background: #fff; border-radius: 14px; border: 1px solid #e8ecf1; overflow: hidden; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .gcard img { width: 100%; height: 130px; object-fit: cover; background: var(--card); display: block; }
+  .gcard .gi { padding: 8px 10px; }
+  .gcard .c { font-size: 12px; font-weight: 700; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gcard .m { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- EÜR ---------- */
+  .eurrow { display: flex; justify-content: space-between; padding: 10px 16px; font-size: 14px; color: #334155; }
+  .eurrow.head, .eurrow.sum { font-weight: 800; color: var(--green); }
+  .eurrow.info { color: var(--muted); font-size: 13px; }
+  .eursep { height: 1px; background: #f1f5f9; margin: 0 4px; }
+  .eurbadge { background: var(--red); color: #fff; border-radius: 99px; font-size: 10px; padding: 1px 7px; margin-left: 6px; }
+
+  /* ---------- Formulare ---------- */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 5px; }
+  .field input, .field select, .field textarea { width: 100%; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 10px 12px; font-size: 15px; background: #fff; }
+  .field textarea { resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--nav-bg); border-color: var(--green); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px;
+    padding: 11px 18px; font-weight: 700; font-size: 14px; background: var(--green); color: #fff; }
+  .btn:active { background: var(--green-mid); }
+  .btn.outline { background: #fff; color: var(--green); border: 1px solid var(--green); }
+  .btn.gray { background: #fff; color: #64748b; border: 1px solid #e2e8f0; }
+  .btn.danger { background: var(--red); color: #fff; }
+  .btn:disabled { opacity: .5; }
+  .taxgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .taxopt { text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 10px; font-size: 12px; font-weight: 600; color: #64748b; background: #fff; }
+  .taxopt.on { border-color: var(--green); background: var(--nav-bg); color: var(--green); }
+  .taxhint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .typetoggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .typeopt { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 700; color: #64748b; background: #fff; }
+  .typeopt.on { border-color: var(--green); background: var(--nav-bg); color: var(--green); }
+
+  /* ---------- Foto-Upload ---------- */
+  .photobox { border: 2px dashed #cbd5e1; border-radius: 14px; background: var(--card); padding: 16px; text-align: center; }
+  .photomode { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
+  .photomode button { font-size: 12px; font-weight: 600; border-radius: 99px; padding: 5px 13px; background: #fff; color: #64748b; border: 1px solid #e2e8f0; }
+  .photomode button.on { background: var(--green); color: #fff; border-color: var(--green); }
+  .photolabel { display: inline-flex; align-items: center; gap: 8px; background: var(--green); color: #fff;
+    border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 600; }
+  .photopreview { position: relative; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; }
+  .photopreview img { width: 100%; max-height: 210px; object-fit: contain; background: #fff; display: block; }
+  .photodel { position: absolute; top: 8px; right: 8px; background: var(--red); color: #fff; border-radius: 8px;
+    padding: 6px 9px; font-size: 13px; }
+  .smallhint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- Modals ---------- */
+  #modal-root { position: fixed; inset: 0; z-index: 50; display: none; }
+  #modal-root.open { display: block; }
+  .modal-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,.55); }
+  .modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(440px, calc(100vw - 24px));
+    max-height: calc(100vh - 40px); overflow-y: auto; background: #fff; border-radius: 18px; padding: 18px; }
+  .modal h2 { font-size: 16px; color: var(--green); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  #photo-view { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.82); display: none;
+    flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+  #photo-view.open { display: flex; }
+  #photo-view img { max-width: 100%; max-height: 72vh; border-radius: 12px; background: #fff; object-fit: contain; }
+  #photo-view .pvinfo { color: #fff; font-size: 13px; margin-bottom: 8px; text-align: center; }
+  #photo-view .pvclose { color: #fff; font-size: 14px; background: rgba(255,255,255,.15); border-radius: 99px; padding: 8px 20px; margin-top: 14px; }
+
+  /* ---------- Toast ---------- */
+  #toast { position: fixed; bottom: calc(140px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    background: var(--green); color: #fff; font-size: 14px; font-weight: 600; border-radius: 99px;
+    padding: 10px 22px; z-index: 70; display: none; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+  /* ---------- Objekte ---------- */
+  .projcard { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 16px; margin-bottom: 12px; }
+  .projcard.active { background: var(--nav-bg); outline: 1px solid var(--green); }
+  .projhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .projhead input { font-size: 15px; font-weight: 800; color: var(--green); border: none; background: transparent;
+    border-bottom: 1px dashed transparent; width: 170px; max-width: 100%; padding: 2px 0; }
+  .badge-active { background: var(--green); color: #fff; font-size: 10px; font-weight: 700; border-radius: 99px; padding: 3px 10px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .storage-banner { background: #FBEEEC; border: 1px solid var(--red); color: #8f4a3e; border-radius: 14px;
+    padding: 12px 14px; font-size: 13px; margin-bottom: 12px; }
+  code { background: #f1f5f9; border-radius: 6px; padding: 1px 5px; font-size: 12px; }
+
+  /* ---------- Desktop ---------- */
+  @media (min-width: 900px) {
+    #bottomnav, #fab { display: none; }
+    #sidebar { display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+      background: #fff; border-right: 1px solid #f1f5f9; padding: 18px 14px; }
+    #sidebar .logo { font-size: 26px; padding: 0 8px; margin-bottom: 4px; }
+    #sidebar .sub { font-size: 11px; color: var(--muted); padding: 0 8px; margin-bottom: 20px; }
+    #sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+    #sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px;
+      text-decoration: none; color: #64748b; font-size: 14px; font-weight: 600;
+      border-left: 4px solid transparent; padding-left: 8px; }
+    #sidebar nav a.active { background: var(--nav-bg); color: var(--green); border-left-color: var(--green); }
+    #sidebar .newbtn { margin-top: auto; }
+    #sidebar nav a svg { width: 17px; height: 17px; }
+    body { padding-left: 240px; }
+    #main { padding-bottom: 40px; }
+    .cards { grid-template-columns: repeat(4, 1fr); }
+    .gallery { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div id="sidebar"></div>
+<header id="topbar"></header>
+<main id="main"></main>
+<button id="fab" aria-label="Neue Buchung">＋</button>
+<nav id="bottomnav"></nav>
+<div id="modal-root"></div>
+<div id="photo-view"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ================= Daten ================= */
+const SEED = {"projects":[{"id":"p-friedhofsweg4","name":"Friedhofsweg 4","address":"Friedhofsweg 4, 15827 Dahlewitz","units":["W1","W2","W3","G1"],"bookings":[{"id":"B-20261007-160320-43","date":"2025-01-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-132803-111","date":"2025-01-02","type":"ausgabe","category":"Material","amount":109.37,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134317-137","date":"2025-01-02","type":"ausgabe","category":"Entsorgung","amount":14,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143120-157","date":"2025-01-03","type":"ausgabe","category":"Entsorgung","amount":10,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151736-188","date":"2025-01-06","type":"ausgabe","category":"Geräte","amount":39.99,"note":"West&East Company GmbH","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133247-115","date":"2025-01-07","type":"ausgabe","category":"Material","amount":73.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160815-54","date":"2025-01-08","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-130757-259","date":"2025-01-15","type":"ausgabe","category":"Material","amount":198.76,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-093312-236","date":"2025-01-16","type":"ausgabe","category":"Material","amount":1.02,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142305-146","date":"2025-01-20","type":"ausgabe","category":"Fußbodenbelag","amount":705.1,"note":"Kibek","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142621-149","date":"2025-01-25","type":"ausgabe","category":"Material","amount":121.41,"note":"Poco","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092826-222","date":"2025-01-27","type":"ausgabe","category":"Material","amount":51.24,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-101832-229","date":"2025-01-29","type":"ausgabe","category":"Material","amount":268.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154244-20","date":"2025-01-29","type":"ausgabe","category":"Material","amount":197,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122153-87","date":"2025-01-30","type":"ausgabe","category":"Tilgung","amount":834.75,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151801-189","date":"2025-01-30","type":"ausgabe","category":"Material","amount":139.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154429-24","date":"2025-01-30","type":"ausgabe","category":"Material","amount":65.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151951-190","date":"2025-01-30","type":"ausgabe","category":"Material","amount":61.65,"note":"Avaloid","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-123010-99","date":"2025-01-30","type":"ausgabe","category":"Zinsen","amount":23.55,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160336-44","date":"2025-02-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160826-55","date":"2025-02-03","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143040-156","date":"2025-02-03","type":"ausgabe","category":"Material","amount":39.99,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-151633-9","date":"2025-02-06","type":"ausgabe","category":"Material","amount":268.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-091632-218","date":"2025-02-06","type":"ausgabe","category":"Material","amount":28.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121001-77","date":"2025-02-13","type":"ausgabe","category":"Material","amount":70.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121612-83","date":"2025-02-13","type":"ausgabe","category":"Entsordung","amount":10,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161403-66","date":"2025-02-15","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154411-23","date":"2025-02-15","type":"ausgabe","category":"Material","amount":32.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-152012-191","date":"2025-02-17","type":"ausgabe","category":"Material","amount":7.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-102031-231","date":"2025-02-20","type":"ausgabe","category":"Material","amount":300,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154445-25","date":"2025-02-20","type":"ausgabe","category":"Material","amount":24.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-152034-192","date":"2025-02-24","type":"ausgabe","category":"Material","amount":33.47,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155112-32","date":"2025-02-24","type":"ausgabe","category":"Wasser/Abwasser","amount":-222.74,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121729-85","date":"2025-02-26","type":"ausgabe","category":"Küchenspühle","amount":84.96,"note":"Retoura","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121828-86","date":"2025-02-26","type":"ausgabe","category":"WC Sitz","amount":82.99,"note":"Reuter","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134403-138","date":"2025-02-27","type":"ausgabe","category":"Wartung","amount":527.47,"note":"Grünbeck","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154314-21","date":"2025-02-27","type":"ausgabe","category":"Material","amount":52.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-101605-228","date":"2025-02-27","type":"ausgabe","category":"Material","amount":31.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122213-88","date":"2025-02-28","type":"ausgabe","category":"Tilgung","amount":835.12,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-123042-100","date":"2025-02-28","type":"ausgabe","category":"Zinsen","amount":23.18,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160348-45","date":"2025-03-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-152102-193","date":"2025-03-03","type":"ausgabe","category":"Material","amount":109.18,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160839-56","date":"2025-03-03","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121642-84","date":"2025-03-03","type":"ausgabe","category":"Entsorgung","amount":10,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154530-27","date":"2025-03-04","type":"ausgabe","category":"Material","amount":23.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-151340-6","date":"2025-03-05","type":"ausgabe","category":"Material","amount":146.05,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155356-204","date":"2025-03-07","type":"ausgabe","category":"Material","amount":21.74,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121338-81","date":"2025-03-07","type":"ausgabe","category":"Material","amount":18.48,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154621-30","date":"2025-03-08","type":"ausgabe","category":"Material","amount":113.55,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154502-26","date":"2025-03-08","type":"ausgabe","category":"Material","amount":11.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161415-67","date":"2025-03-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121104-78","date":"2025-03-10","type":"ausgabe","category":"Material","amount":79.38,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121137-80","date":"2025-03-10","type":"ausgabe","category":"Material","amount":51.58,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134810-142","date":"2025-03-10","type":"ausgabe","category":"Material","amount":31.56,"note":"Schlau","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-151556-8","date":"2025-03-10","type":"ausgabe","category":"Material","amount":29.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155156-201","date":"2025-03-10","type":"ausgabe","category":"Material","amount":18.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-103808-233","date":"2025-03-12","type":"ausgabe","category":"Material","amount":27,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155217-202","date":"2025-03-13","type":"ausgabe","category":"Material","amount":32.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121121-79","date":"2025-03-14","type":"ausgabe","category":"Material","amount":61.58,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145339-171","date":"2025-03-14","type":"ausgabe","category":"Material","amount":22.3,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-101908-230","date":"2025-03-17","type":"ausgabe","category":"Material","amount":91.98,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131003-260","date":"2025-03-17","type":"ausgabe","category":"Reparatur","amount":69,"note":"BVC IT","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134625-140","date":"2025-03-18","type":"ausgabe","category":"Zaun","amount":993.99,"note":"H.T. Trade Service GmbH","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-093729-237","date":"2025-03-18","type":"ausgabe","category":"Material","amount":49.64,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-104038-234","date":"2025-03-19","type":"ausgabe","category":"Ensorgung","amount":10,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142816-152","date":"2025-03-20","type":"ausgabe","category":"Schlüssel für neue Mieter","amount":55,"note":"Multiexpress","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155239-203","date":"2025-03-20","type":"ausgabe","category":"Material","amount":41.58,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151105-181","date":"2025-03-24","type":"ausgabe","category":"Polyurethanschaum","amount":10.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151017-180","date":"2025-03-25","type":"ausgabe","category":"Material","amount":472.5,"note":"Amazon - Brunnenschacht","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133225-114","date":"2025-03-25","type":"ausgabe","category":"Material","amount":94.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-085740-213","date":"2025-03-27","type":"ausgabe","category":"Material","amount":8.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092800-221","date":"2025-03-29","type":"ausgabe","category":"Material","amount":136.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122245-89","date":"2025-03-31","type":"ausgabe","category":"Tilgung","amount":835.49,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151159-182","date":"2025-03-31","type":"ausgabe","category":"Material","amount":38.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-124451-258","date":"2025-03-31","type":"ausgabe","category":"Material","amount":38.89,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-123128-101","date":"2025-03-31","type":"ausgabe","category":"Zinsen","amount":22.81,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131257-262","date":"2025-03-31","type":"ausgabe","category":"Material","amount":14.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153022-15","date":"2025-04-01","type":"ausgabe","category":"Material","amount":240.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160357-46","date":"2025-04-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160850-57","date":"2025-04-01","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-093932-238","date":"2025-04-03","type":"ausgabe","category":"Material","amount":9.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-094102-239","date":"2025-04-04","type":"ausgabe","category":"Material","amount":73.35,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151222-183","date":"2025-04-04","type":"ausgabe","category":"Material","amount":53.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133203-113","date":"2025-04-05","type":"ausgabe","category":"Material","amount":70.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142848-153","date":"2025-04-05","type":"ausgabe","category":"Ensorgung + Baumaterial","amount":55.6,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-112650-253","date":"2025-04-07","type":"ausgabe","category":"Müllabfuhr","amount":107.7,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155958-38","date":"2025-04-07","type":"ausgabe","category":"Grundsteuer","amount":76.23,"note":"Gemeinde Blankenfelde-Mahlow","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143201-158","date":"2025-04-07","type":"ausgabe","category":"Beton RC 0,5qm","amount":18,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133848-128","date":"2025-04-08","type":"ausgabe","category":"Material","amount":180.25,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-094151-240","date":"2025-04-08","type":"ausgabe","category":"Material","amount":32.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133915-129","date":"2025-04-08","type":"ausgabe","category":"Material","amount":-129.99,"note":"OBI - Retourenbeleg","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161432-68","date":"2025-04-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155306-33","date":"2025-04-15","type":"ausgabe","category":"Wasser/Abwasser - Abschlag","amount":118,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154547-28","date":"2025-04-28","type":"ausgabe","category":"Material","amount":1.5,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122303-90","date":"2025-04-30","type":"ausgabe","category":"Tilgung","amount":835.86,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-121531-82","date":"2025-04-30","type":"ausgabe","category":"Material","amount":43.3,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-123208-102","date":"2025-04-30","type":"ausgabe","category":"Zinsen","amount":22.44,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160406-47","date":"2025-05-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160901-58","date":"2025-05-02","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131343-263","date":"2025-05-05","type":"ausgabe","category":"Material","amount":24.95,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131442-264","date":"2025-05-05","type":"ausgabe","category":"Material","amount":13.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131038-261","date":"2025-05-06","type":"ausgabe","category":"Türgriffe","amount":18.7,"note":"ahb","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161445-69","date":"2025-05-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154350-22","date":"2025-05-12","type":"ausgabe","category":"Material","amount":144.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-094749-241","date":"2025-05-15","type":"ausgabe","category":"Material","amount":275.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160011-39","date":"2025-05-15","type":"ausgabe","category":"Grundsteuer","amount":76.23,"note":"Gemeinde Blankenfelde-Mahlow","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092740-220","date":"2025-05-15","type":"ausgabe","category":"Material","amount":34.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142225-145","date":"2025-05-19","type":"ausgabe","category":"Geschirrspühler neue Mietwohnung","amount":194.98,"note":"Retoura","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154639-31","date":"2025-05-24","type":"ausgabe","category":"Material","amount":24.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142713-150","date":"2025-05-24","type":"ausgabe","category":"Ensorgung","amount":18,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142736-151","date":"2025-05-24","type":"ausgabe","category":"Ensorgung","amount":18,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133645-126","date":"2025-05-24","type":"ausgabe","category":"Material","amount":16.99,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134147-135","date":"2025-05-24","type":"ausgabe","category":"Ensorgung","amount":16.6,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133558-125","date":"2025-05-27","type":"ausgabe","category":"Material","amount":16.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122607-91","date":"2025-05-30","type":"ausgabe","category":"Tilgung","amount":836.23,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-131753-103","date":"2025-05-30","type":"ausgabe","category":"Zinsen","amount":22.07,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160421-48","date":"2025-06-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160929-59","date":"2025-06-02","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-093022-227","date":"2025-06-05","type":"ausgabe","category":"Material","amount":7.97,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161453-70","date":"2025-06-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131507-265","date":"2025-06-11","type":"ausgabe","category":"Material","amount":9.53,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155317-34","date":"2025-06-15","type":"ausgabe","category":"Wasser/Abwasser - Abschlag","amount":118,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133142-112","date":"2025-06-17","type":"ausgabe","category":"Material","amount":19.62,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-094940-242","date":"2025-06-18","type":"ausgabe","category":"Material","amount":153.43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151239-184","date":"2025-06-25","type":"ausgabe","category":"Material","amount":6.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122639-92","date":"2025-06-30","type":"ausgabe","category":"Tilgung","amount":836.6,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-131825-104","date":"2025-06-30","type":"ausgabe","category":"Zinsen","amount":21.7,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160430-49","date":"2025-07-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160943-60","date":"2025-07-01","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151302-185","date":"2025-07-01","type":"ausgabe","category":"Material","amount":29.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-154604-29","date":"2025-07-03","type":"ausgabe","category":"Material","amount":101.52,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142056-144","date":"2025-07-03","type":"ausgabe","category":"Material","amount":18.93,"note":"ZEG","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092957-226","date":"2025-07-05","type":"ausgabe","category":"Material","amount":80.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-095018-243","date":"2025-07-05","type":"ausgabe","category":"Material","amount":69.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134503-139","date":"2025-07-05","type":"ausgabe","category":"Gerätmiete","amount":51.7,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142922-154","date":"2025-07-05","type":"ausgabe","category":"Ensorgung + Baumaterial","amount":49,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142422-147","date":"2025-07-05","type":"ausgabe","category":"Material - Retourenbeleg","amount":-48.45,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-113235-256","date":"2025-07-06","type":"ausgabe","category":"Schornsteinfeger","amount":91.13,"note":"Jacqueline Christ - Schornsteinfeger","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-113223-255","date":"2025-07-06","type":"ausgabe","category":"Schornsteinfeger","amount":70.63,"note":"Jacqueline Christ - Schornsteinfeger","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153048-16","date":"2025-07-08","type":"ausgabe","category":"Material","amount":42.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-085935-215","date":"2025-07-09","type":"ausgabe","category":"Material","amount":113,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134247-136","date":"2025-07-09","type":"ausgabe","category":"Ensorgung","amount":10.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-095122-244","date":"2025-07-09","type":"ausgabe","category":"Material","amount":8.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161505-71","date":"2025-07-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-095255-245","date":"2025-07-10","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142955-155","date":"2025-07-11","type":"ausgabe","category":"Ensorgung","amount":10.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145302-170","date":"2025-07-12","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143451-161","date":"2025-07-14","type":"ausgabe","category":"Ensorgung","amount":34.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092717-219","date":"2025-07-14","type":"ausgabe","category":"Material","amount":26.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143507-162","date":"2025-07-15","type":"ausgabe","category":"Ensorgung","amount":36.5,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-091556-217","date":"2025-07-16","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151641-187","date":"2025-07-17","type":"ausgabe","category":"Material","amount":39,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-091322-216","date":"2025-07-17","type":"ausgabe","category":"Material","amount":30.3,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092937-225","date":"2025-07-17","type":"ausgabe","category":"Material","amount":16.71,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155430-205","date":"2025-07-18","type":"ausgabe","category":"Material","amount":301.54,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092859-224","date":"2025-07-18","type":"ausgabe","category":"Material","amount":10.31,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133519-123","date":"2025-07-19","type":"ausgabe","category":"Material","amount":69.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143433-160","date":"2025-07-19","type":"ausgabe","category":"Ensorgung","amount":33.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133301-116","date":"2025-07-21","type":"ausgabe","category":"Material","amount":48.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-092841-223","date":"2025-07-29","type":"ausgabe","category":"Material","amount":85.05,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122718-93","date":"2025-07-30","type":"ausgabe","category":"Tilgung","amount":836.97,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-131841-105","date":"2025-07-30","type":"ausgabe","category":"Zinsen","amount":21.33,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160733-212","date":"2025-07-31","type":"ausgabe","category":"Material","amount":193.07,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160441-50","date":"2025-08-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161003-61","date":"2025-08-01","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-104212-235","date":"2025-08-01","type":"ausgabe","category":"Material","amount":57.42,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145142-166","date":"2025-08-02","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145356-172","date":"2025-08-02","type":"ausgabe","category":"Material","amount":24.32,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161513-72","date":"2025-08-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145242-169","date":"2025-08-12","type":"ausgabe","category":"Material","amount":90.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160319-209","date":"2025-08-13","type":"ausgabe","category":"Material","amount":53.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-151602-186","date":"2025-08-13","type":"ausgabe","category":"Material","amount":23.9,"note":"Bauhandel","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155331-35","date":"2025-08-15","type":"ausgabe","category":"Wasser/Abwasser - Abschlag","amount":118,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160026-40","date":"2025-08-15","type":"ausgabe","category":"Grundsteuer","amount":76.23,"note":"Gemeinde Blankenfelde-Mahlow","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160403-211","date":"2025-08-15","type":"ausgabe","category":"Material","amount":38.5,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160258-208","date":"2025-08-18","type":"ausgabe","category":"Material","amount":4.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145203-167","date":"2025-08-20","type":"ausgabe","category":"Material","amount":9.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133715-127","date":"2025-08-21","type":"ausgabe","category":"Material","amount":77.47,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145224-168","date":"2025-08-21","type":"ausgabe","category":"Material","amount":37.43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-085900-214","date":"2025-08-23","type":"ausgabe","category":"Material","amount":138.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-095944-246","date":"2025-08-23","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145126-165","date":"2025-08-25","type":"ausgabe","category":"Material","amount":286.34,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160335-210","date":"2025-08-26","type":"ausgabe","category":"Material","amount":52.5,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133335-118","date":"2025-08-27","type":"ausgabe","category":"Material","amount":34.2,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-151536-7","date":"2025-08-27","type":"ausgabe","category":"Material","amount":15.04,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153003-14","date":"2025-08-28","type":"ausgabe","category":"Material","amount":28.34,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133412-120","date":"2025-08-29","type":"ausgabe","category":"Material","amount":280.82,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145420-173","date":"2025-08-29","type":"ausgabe","category":"Material","amount":156.5,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154836-196","date":"2025-08-29","type":"ausgabe","category":"Spühlkasten","amount":74.9,"note":"UNIDOMO","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-160020-207","date":"2025-08-29","type":"ausgabe","category":"Material","amount":34.65,"note":"Schlau","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133320-117","date":"2025-08-29","type":"ausgabe","category":"Material","amount":24.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133434-121","date":"2025-08-30","type":"ausgabe","category":"Material","amount":23.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122735-94","date":"2025-09-01","type":"ausgabe","category":"Tilgung","amount":837.34,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160451-51","date":"2025-09-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161014-62","date":"2025-09-01","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-131937-106","date":"2025-09-01","type":"ausgabe","category":"Zinsen","amount":20.96,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145106-164","date":"2025-09-01","type":"ausgabe","category":"Material","amount":9.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-144122-163","date":"2025-09-01","type":"ausgabe","category":"Material","amount":5.26,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161524-73","date":"2025-09-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154951-199","date":"2025-09-10","type":"ausgabe","category":"Material","amount":234,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131542-266","date":"2025-09-11","type":"ausgabe","category":"Material","amount":35.68,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133538-124","date":"2025-09-13","type":"ausgabe","category":"Material","amount":43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-100052-247","date":"2025-09-15","type":"ausgabe","category":"Material","amount":32.76,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-100250-249","date":"2025-09-20","type":"ausgabe","category":"Material","amount":55.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-100138-248","date":"2025-09-20","type":"ausgabe","category":"Material","amount":35.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154854-197","date":"2025-09-23","type":"ausgabe","category":"Material","amount":39,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154934-198","date":"2025-09-24","type":"ausgabe","category":"Material","amount":109.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133451-122","date":"2025-09-24","type":"ausgabe","category":"Material","amount":52.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-133354-119","date":"2025-09-24","type":"ausgabe","category":"Material","amount":4.79,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122802-95","date":"2025-09-30","type":"ausgabe","category":"Tilgung","amount":837.71,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-110604-250","date":"2025-09-30","type":"ausgabe","category":"Werkzeug","amount":54,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-131959-107","date":"2025-09-30","type":"ausgabe","category":"Zinsen","amount":20.59,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-112728-254","date":"2025-10-01","type":"ausgabe","category":"Müllabfuhr","amount":113.4,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160516-52","date":"2025-10-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161026-63","date":"2025-10-01","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134015-130","date":"2025-10-01","type":"ausgabe","category":"Ensorgung","amount":9,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134034-131","date":"2025-10-02","type":"ausgabe","category":"Ensorgung","amount":9,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134108-133","date":"2025-10-02","type":"ausgabe","category":"Ensorgung","amount":9,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155107-200","date":"2025-10-07","type":"ausgabe","category":"Material","amount":49.28,"note":"Speedplant","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161533-74","date":"2025-10-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134050-132","date":"2025-10-10","type":"ausgabe","category":"Ensorgung","amount":12.6,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134128-134","date":"2025-10-11","type":"ausgabe","category":"Ensorgung","amount":10.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131613-267","date":"2025-10-13","type":"ausgabe","category":"Material","amount":27.5,"note":"Gräfe","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155346-36","date":"2025-10-15","type":"ausgabe","category":"Wasser/Abwasser - Abschlag","amount":118,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-143226-159","date":"2025-10-15","type":"ausgabe","category":"Ensorgung","amount":10.8,"note":"Erdenhof Flämingerden","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145512-175","date":"2025-10-16","type":"ausgabe","category":"Material","amount":8.29,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-155906-206","date":"2025-10-17","type":"ausgabe","category":"Material","amount":59.98,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145529-176","date":"2025-10-23","type":"ausgabe","category":"Material","amount":15.5,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122822-96","date":"2025-10-30","type":"ausgabe","category":"Tilgung","amount":838.08,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-132025-108","date":"2025-10-30","type":"ausgabe","category":"Zinsen","amount":20.22,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160525-53","date":"2025-11-01","type":"ausgabe","category":"Gebäudeversicherung","amount":101.6,"note":"AXA-Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145643-179","date":"2025-11-01","type":"ausgabe","category":"Material","amount":17.3,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-124400-257","date":"2025-11-02","type":"ausgabe","category":"Material","amount":14.11,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131722-268","date":"2025-11-02","type":"ausgabe","category":"Material","amount":104.47,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161039-64","date":"2025-11-03","type":"ausgabe","category":"Strom - Abschlag","amount":87,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145446-174","date":"2025-11-03","type":"ausgabe","category":"Material","amount":43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161604-75","date":"2025-11-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-152945-13","date":"2025-11-10","type":"ausgabe","category":"Material","amount":29.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145609-178","date":"2025-11-12","type":"ausgabe","category":"Material","amount":57.15,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161149-65","date":"2025-11-12","type":"ausgabe","category":"Strom - Gutschrift","amount":-169.97,"note":"Vattenfall - Strom Gemeinschaftsräume","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-145548-177","date":"2025-11-13","type":"ausgabe","category":"Material","amount":14.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160040-41","date":"2025-11-15","type":"ausgabe","category":"Grundsteuer","amount":76.23,"note":"Gemeinde Blankenfelde-Mahlow","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154741-195","date":"2025-11-16","type":"ausgabe","category":"Material","amount":29.97,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-154708-194","date":"2025-11-16","type":"ausgabe","category":"Material","amount":8.99,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153104-17","date":"2025-11-18","type":"ausgabe","category":"Material","amount":19,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261009-103717-232","date":"2025-11-20","type":"ausgabe","category":"Material","amount":7.99,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153128-18","date":"2025-11-21","type":"ausgabe","category":"Material","amount":124.08,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-142503-148","date":"2025-11-26","type":"ausgabe","category":"Ladekabel","amount":11.99,"note":"TOOM","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-153349-19","date":"2025-11-28","type":"ausgabe","category":"Material","amount":54.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122842-97","date":"2025-12-01","type":"ausgabe","category":"Tilgung","amount":838.45,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-160202-42","date":"2025-12-01","type":"ausgabe","category":"Gebäudeversicherung","amount":115.95,"note":"AXA Versicherung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-110734-251","date":"2025-12-01","type":"ausgabe","category":"Werkzeug","amount":24.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-132041-109","date":"2025-12-01","type":"ausgabe","category":"Zinsen","amount":19.85,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-110835-252","date":"2025-12-06","type":"ausgabe","category":"Material","amount":52.25,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-161620-76","date":"2025-12-10","type":"ausgabe","category":"Gas - Abschlag","amount":310,"note":"Montana Energieversorgung","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-152832-11","date":"2025-12-11","type":"ausgabe","category":"Material","amount":32.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134717-141","date":"2025-12-14","type":"ausgabe","category":"Toiletten Sanierung","amount":455.65,"note":"Appler","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-134840-143","date":"2025-12-14","type":"ausgabe","category":"Wartung Heizung","amount":120.58,"note":"Appler","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-155358-37","date":"2025-12-15","type":"ausgabe","category":"Wasser/Abwasser - Abschlag","amount":118,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-122917-98","date":"2025-12-30","type":"ausgabe","category":"Tilgung","amount":838.82,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-152853-12","date":"2025-12-30","type":"ausgabe","category":"Material","amount":31.4,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-132102-110","date":"2025-12-30","type":"ausgabe","category":"Zinsen","amount":19.48,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261007-152732-10","date":"2025-12-31","type":"ausgabe","category":"Material","amount":21.44,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131814-269","date":"2025-11-29","type":"ausgabe","category":"Material","amount":49.79,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131847-270","date":"2025-11-29","type":"ausgabe","category":"Material","amount":8.84,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261013-131925-271","date":"2025-11-02","type":"ausgabe","category":"Material","amount":13.49,"note":"Amazon","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101721-62","date":"2025-01-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101745-63","date":"2025-02-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101800-64","date":"2025-03-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101813-65","date":"2025-04-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101833-66","date":"2025-05-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101854-67","date":"2025-06-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101907-68","date":"2025-07-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-101921-69","date":"2025-08-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102004-70","date":"2025-09-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102016-71","date":"2025-10-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102120-72","date":"2025-01-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102134-73","date":"2025-02-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102145-74","date":"2025-03-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102154-75","date":"2025-04-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102310-76","date":"2025-05-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102322-77","date":"2025-06-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102333-78","date":"2025-07-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102343-79","date":"2025-08-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102355-80","date":"2025-09-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-102406-81","date":"2025-10-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-105028-8","date":"2025-01-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-105335-10","date":"2025-02-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091523-34","date":"2025-03-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091655-35","date":"2025-04-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091930-36","date":"2025-05-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092020-37","date":"2025-06-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092034-38","date":"2025-07-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092057-39","date":"2025-08-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092109-40","date":"2025-09-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092123-41","date":"2025-10-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092138-42","date":"2025-11-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092159-43","date":"2025-12-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-105124-9","date":"2025-01-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-105443-11","date":"2025-02-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092910-52","date":"2025-03-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092921-53","date":"2025-04-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092941-54","date":"2025-05-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092956-55","date":"2025-06-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093009-56","date":"2025-07-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093030-57","date":"2025-08-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093200-58","date":"2025-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093213-59","date":"2025-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093226-60","date":"2025-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-093240-61","date":"2025-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092357-44","date":"2025-09-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092418-45","date":"2025-10-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092437-46","date":"2025-11-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092453-47","date":"2025-12-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092547-48","date":"2025-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092604-49","date":"2025-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092618-50","date":"2025-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-092630-51","date":"2025-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-095156-6","date":"2025-01-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-111627-12","date":"2025-02-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112009-13","date":"2025-03-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112134-14","date":"2025-04-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112215-15","date":"2025-05-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112300-16","date":"2025-06-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112340-17","date":"2025-07-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112417-18","date":"2025-08-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112624-19","date":"2025-09-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112659-20","date":"2025-10-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112736-21","date":"2025-11-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112818-22","date":"2025-12-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-104906-7","date":"2025-01-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-112925-23","date":"2025-02-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-113419-24","date":"2025-03-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-113501-25","date":"2025-04-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-113607-26","date":"2025-05-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-113640-27","date":"2025-06-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-113800-28","date":"2025-07-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091000-29","date":"2025-08-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091024-30","date":"2025-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091124-31","date":"2025-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091148-32","date":"2025-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-091201-33","date":"2025-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-103926-82","date":"2025-11-03","type":"einnahme","category":"NK-Vorauszahlung","amount":100,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-103950-83","date":"2025-11-03","type":"einnahme","category":"Miete","amount":850,"note":"Janine Martin","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124540-13","date":"2026-01-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124316-12","date":"2026-01-09","type":"ausgabe","category":"Grundsteuer","amount":304.92,"note":"Gemeinde Blankenfelde-Mahlow","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133434-26","date":"2026-01-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":310,"note":"Montana Gas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211742-96","date":"2026-01-30","type":"ausgabe","category":"Material","amount":26.4,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-212148-42","date":"2026-01-30","type":"ausgabe","category":"Zinsen 01/26","amount":19.11,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-212733-45","date":"2026-01-30","type":"ausgabe","category":"Tilgung","amount":839.19,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124617-14","date":"2026-02-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-122637-6","date":"2026-02-06","type":"ausgabe","category":"Wasser/Abwasser","amount":-1.61,"note":"KMS-Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200900-80","date":"2026-02-09","type":"ausgabe","category":"Material","amount":197.33,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133257-25","date":"2026-02-10","type":"ausgabe","category":"Erdgas","amount":-587.48,"note":"Montana Gas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230324-188","date":"2026-02-10","type":"ausgabe","category":"Entsorgung","amount":15,"note":"SBAZV","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200942-82","date":"2026-02-13","type":"ausgabe","category":"Material","amount":2.79,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-201615-84","date":"2026-02-13","type":"ausgabe","category":"Material","amount":5.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-201645-85","date":"2026-02-13","type":"ausgabe","category":"Material","amount":81.22,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-201020-83","date":"2026-02-18","type":"ausgabe","category":"Material","amount":45.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200922-81","date":"2026-02-19","type":"ausgabe","category":"Material","amount":25.03,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-201724-86","date":"2026-02-23","type":"ausgabe","category":"Material","amount":12.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211117-89","date":"2026-02-23","type":"ausgabe","category":"Material","amount":32.89,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200612-78","date":"2026-02-23","type":"ausgabe","category":"Material","amount":35.21,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200539-77","date":"2026-02-23","type":"ausgabe","category":"Material","amount":69.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-195937-67","date":"2026-02-24","type":"ausgabe","category":"Material","amount":46.15,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200249-72","date":"2026-02-24","type":"ausgabe","category":"Material","amount":98.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133526-27","date":"2026-02-24","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200020-68","date":"2026-02-25","type":"ausgabe","category":"Material","amount":1.19,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-173002-40","date":"2026-02-25","type":"ausgabe","category":"Zaun","amount":1739.98,"note":"premium XL","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200100-69","date":"2026-02-26","type":"ausgabe","category":"Material","amount":80.01,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200125-70","date":"2026-02-27","type":"ausgabe","category":"Material","amount":32.53,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200232-71","date":"2026-02-27","type":"ausgabe","category":"Material","amount":60.22,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200414-74","date":"2026-02-28","type":"ausgabe","category":"Material","amount":14.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200313-73","date":"2026-02-28","type":"ausgabe","category":"Material","amount":44.94,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124738-15","date":"2026-03-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-212224-43","date":"2026-03-02","type":"ausgabe","category":"Zinsen 02/26","amount":18.74,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-214802-46","date":"2026-03-02","type":"ausgabe","category":"Tilgung","amount":839.56,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-225645-181","date":"2026-03-03","type":"ausgabe","category":"Baumaterial","amount":9,"note":"Jühnsdorf Erdenhof","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200504-76","date":"2026-03-05","type":"ausgabe","category":"Material","amount":72.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-201818-87","date":"2026-03-06","type":"ausgabe","category":"Material","amount":10.57,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211204-90","date":"2026-03-06","type":"ausgabe","category":"Material","amount":25.71,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200438-75","date":"2026-03-06","type":"ausgabe","category":"Material","amount":29.43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211901-98","date":"2026-03-10","type":"ausgabe","category":"Material","amount":52.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-173132-41","date":"2026-03-10","type":"ausgabe","category":"Baggermiete","amount":265,"note":"K&V Vermietungsservice","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133550-28","date":"2026-03-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222626-165","date":"2026-03-12","type":"ausgabe","category":"Material","amount":39.99,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230051-185","date":"2026-03-14","type":"ausgabe","category":"Material","amount":55.77,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211842-97","date":"2026-03-19","type":"ausgabe","category":"Material","amount":37.25,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211358-93","date":"2026-03-23","type":"ausgabe","category":"Material","amount":75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211230-91","date":"2026-03-24","type":"ausgabe","category":"Material","amount":13.55,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211414-94","date":"2026-03-24","type":"ausgabe","category":"Material","amount":24.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211035-88","date":"2026-03-24","type":"ausgabe","category":"Material","amount":44.43,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211320-92","date":"2026-03-27","type":"ausgabe","category":"Material","amount":62.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213205-117","date":"2026-03-27","type":"ausgabe","category":"Material","amount":93.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-172336-38","date":"2026-03-29","type":"ausgabe","category":"Müllleerung","amount":141.76,"note":"SBAZV - Müllgebühren","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-212353-44","date":"2026-03-30","type":"ausgabe","category":"Zinsen 03/26","amount":18.37,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212958-110","date":"2026-03-30","type":"ausgabe","category":"Material","amount":95.92,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223510-47","date":"2026-03-30","type":"ausgabe","category":"Tilgung","amount":839.93,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213147-116","date":"2026-04-01","type":"ausgabe","category":"Material","amount":13.4,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124834-16","date":"2026-04-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133642-29","date":"2026-04-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213046-113","date":"2026-04-14","type":"ausgabe","category":"Material","amount":94.74,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213013-111","date":"2026-04-15","type":"ausgabe","category":"Material","amount":15.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-122724-7","date":"2026-04-15","type":"ausgabe","category":"Wasser/Abwasser","amount":146,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221724-149","date":"2026-04-16","type":"ausgabe","category":"Material","amount":10.77,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213028-112","date":"2026-04-16","type":"ausgabe","category":"Material","amount":25.09,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214317-130","date":"2026-04-18","type":"ausgabe","category":"Material","amount":4.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213125-115","date":"2026-04-18","type":"ausgabe","category":"Material","amount":92.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224413-176","date":"2026-04-18","type":"ausgabe","category":"Material","amount":49.5,"note":"Hornbach","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224453-177","date":"2026-04-18","type":"ausgabe","category":"Material","amount":82.2,"note":"Hornbach","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212607-107","date":"2026-04-21","type":"ausgabe","category":"Material","amount":10.99,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212545-106","date":"2026-04-21","type":"ausgabe","category":"Material","amount":40.15,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212514-105","date":"2026-04-21","type":"ausgabe","category":"Material","amount":199,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224801-180","date":"2026-04-22","type":"ausgabe","category":"Baumaterial","amount":21,"note":"Jühnsdorf Erdenhof","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224113-174","date":"2026-04-28","type":"ausgabe","category":"Baumaterial","amount":159.46,"note":"Raab Karcher","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110241-57","date":"2026-04-30","type":"ausgabe","category":"Zinsen","amount":18,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223617-48","date":"2026-04-30","type":"ausgabe","category":"Tilgung","amount":840.3,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124924-17","date":"2026-05-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221900-154","date":"2026-05-07","type":"ausgabe","category":"Material","amount":69,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213108-114","date":"2026-05-07","type":"ausgabe","category":"Material","amount":105.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212411-102","date":"2026-05-08","type":"ausgabe","category":"Material","amount":14.25,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213942-129","date":"2026-05-08","type":"ausgabe","category":"Material","amount":25.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222849-169","date":"2026-05-08","type":"ausgabe","category":"Material","amount":47.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212940-109","date":"2026-05-08","type":"ausgabe","category":"Material","amount":130.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-223835-172","date":"2026-05-08","type":"ausgabe","category":"Baumaterial","amount":199.92,"note":"Raab Karcher","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133652-30","date":"2026-05-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212454-104","date":"2026-05-15","type":"ausgabe","category":"Material","amount":122.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212439-103","date":"2026-05-16","type":"ausgabe","category":"Material","amount":159.76,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214335-131","date":"2026-05-28","type":"ausgabe","category":"Material","amount":46.52,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-223447-171","date":"2026-05-29","type":"ausgabe","category":"Wasser/Abwasser  - Brunnen","amount":1592.34,"note":"Martin Knapp","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110303-58","date":"2026-06-01","type":"ausgabe","category":"Zinsen","amount":17.63,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124935-18","date":"2026-06-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223659-49","date":"2026-06-01","type":"ausgabe","category":"Tilgung","amount":840.67,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222832-168","date":"2026-06-04","type":"ausgabe","category":"Material","amount":8.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224009-173","date":"2026-06-04","type":"ausgabe","category":"Entsorgung","amount":458.15,"note":"HMH Entsorgungs GmbH","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214422-133","date":"2026-06-08","type":"ausgabe","category":"Material","amount":62.75,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212201-100","date":"2026-06-10","type":"ausgabe","category":"Material","amount":5.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133700-31","date":"2026-06-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213818-124","date":"2026-06-12","type":"ausgabe","category":"Material","amount":25.69,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-122824-8","date":"2026-06-15","type":"ausgabe","category":"Wasser/Abwasser","amount":146,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212011-99","date":"2026-06-16","type":"ausgabe","category":"Material","amount":28.35,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213836-125","date":"2026-06-17","type":"ausgabe","category":"Material","amount":36.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213853-126","date":"2026-06-18","type":"ausgabe","category":"Material","amount":11.99,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212625-108","date":"2026-06-20","type":"ausgabe","category":"Material","amount":8.79,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214357-132","date":"2026-06-22","type":"ausgabe","category":"Material","amount":4.19,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-225833-183","date":"2026-06-22","type":"ausgabe","category":"Material","amount":18.46,"note":"Thomas Phillips","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213726-122","date":"2026-06-23","type":"ausgabe","category":"Material","amount":21.39,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-212355-101","date":"2026-06-24","type":"ausgabe","category":"Material","amount":4.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213801-123","date":"2026-06-29","type":"ausgabe","category":"Material","amount":176.73,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110323-59","date":"2026-06-30","type":"ausgabe","category":"Zinsen","amount":17.26,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223723-50","date":"2026-06-30","type":"ausgabe","category":"Tilgung","amount":841.04,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124949-19","date":"2026-07-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213706-121","date":"2026-07-04","type":"ausgabe","category":"Material","amount":36.13,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213302-118","date":"2026-07-07","type":"ausgabe","category":"Material","amount":47.1,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224602-178","date":"2026-07-07","type":"ausgabe","category":"Material","amount":198.97,"note":"HMH Entsorgung GmbH","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221919-155","date":"2026-07-09","type":"ausgabe","category":"Material","amount":8.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213927-128","date":"2026-07-09","type":"ausgabe","category":"Material","amount":23.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-211615-95","date":"2026-07-10","type":"ausgabe","category":"Material","amount":22.14,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213909-127","date":"2026-07-10","type":"ausgabe","category":"Material","amount":22.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-200801-79","date":"2026-07-10","type":"ausgabe","category":"Material","amount":30.14,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133707-32","date":"2026-07-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214619-139","date":"2026-07-13","type":"ausgabe","category":"Material","amount":73.7,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213647-120","date":"2026-07-13","type":"ausgabe","category":"Material","amount":103.3,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214540-137","date":"2026-07-16","type":"ausgabe","category":"Material","amount":153.69,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214636-140","date":"2026-07-17","type":"ausgabe","category":"Material","amount":34.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230123-186","date":"2026-07-20","type":"ausgabe","category":"Material und Werkzeug","amount":60.1,"note":"Lidl","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224324-175","date":"2026-07-26","type":"ausgabe","category":"Material Außenbereich","amount":604.95,"note":"Norma","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214559-138","date":"2026-07-27","type":"ausgabe","category":"Material","amount":16.59,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222657-166","date":"2026-07-27","type":"ausgabe","category":"Material","amount":86.54,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214523-136","date":"2026-07-28","type":"ausgabe","category":"Material","amount":1.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221534-144","date":"2026-07-28","type":"ausgabe","category":"Material","amount":38.25,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222334-156","date":"2026-07-28","type":"ausgabe","category":"Material","amount":112.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221803-151","date":"2026-07-29","type":"ausgabe","category":"Material","amount":35.98,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222421-159","date":"2026-07-29","type":"ausgabe","category":"Material","amount":152.89,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221612-146","date":"2026-07-29","type":"ausgabe","category":"Material","amount":325.2,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110342-60","date":"2026-07-30","type":"ausgabe","category":"Zinsen","amount":16.89,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221836-153","date":"2026-07-30","type":"ausgabe","category":"Material","amount":37.6,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214654-141","date":"2026-07-30","type":"ausgabe","category":"Material","amount":44.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214711-142","date":"2026-07-30","type":"ausgabe","category":"Material","amount":56.4,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223832-51","date":"2026-07-30","type":"ausgabe","category":"Tilgung","amount":841.41,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-224656-179","date":"2026-07-30","type":"ausgabe","category":"Material Außenbereich","amount":168.99,"note":"VidaXL","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-225738-182","date":"2026-07-31","type":"ausgabe","category":"Baumaterial","amount":53,"note":"Jühnsdorf Erdenhof","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-125001-20","date":"2026-08-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-225918-184","date":"2026-08-04","type":"ausgabe","category":"Material","amount":301.41,"note":"Thomas Phillips","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222449-160","date":"2026-08-07","type":"ausgabe","category":"Material","amount":57.77,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214504-135","date":"2026-08-07","type":"ausgabe","category":"Material","amount":222.2,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-214448-134","date":"2026-08-10","type":"ausgabe","category":"Material","amount":34.65,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221631-147","date":"2026-08-10","type":"ausgabe","category":"Material","amount":308,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133717-33","date":"2026-08-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222904-170","date":"2026-08-11","type":"ausgabe","category":"Material","amount":24.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221518-143","date":"2026-08-12","type":"ausgabe","category":"Material","amount":193.35,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124007-9","date":"2026-08-15","type":"ausgabe","category":"Wasser/Abwasser","amount":146,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230250-187","date":"2026-08-18","type":"ausgabe","category":"Material Fenster","amount":126,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221745-150","date":"2026-08-21","type":"ausgabe","category":"Material","amount":109.62,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-213320-119","date":"2026-08-25","type":"ausgabe","category":"Material","amount":114.35,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222349-157","date":"2026-08-26","type":"ausgabe","category":"Material","amount":3.05,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222817-167","date":"2026-08-26","type":"ausgabe","category":"Material","amount":5.25,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221820-152","date":"2026-08-26","type":"ausgabe","category":"Material","amount":20.95,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222610-164","date":"2026-08-26","type":"ausgabe","category":"Material","amount":81.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230429-189","date":"2026-08-26","type":"ausgabe","category":"Zylinder - Schloss","amount":11.98,"note":"OBI","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-230507-190","date":"2026-08-26","type":"ausgabe","category":"Müllsäcke","amount":17.5,"note":"Sademann","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110358-61","date":"2026-08-31","type":"ausgabe","category":"Zinsen","amount":16.52,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-223928-52","date":"2026-08-31","type":"ausgabe","category":"Tilgung","amount":841.78,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-125020-21","date":"2026-09-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222405-158","date":"2026-09-02","type":"ausgabe","category":"Material","amount":60.45,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222554-163","date":"2026-09-08","type":"ausgabe","category":"Material","amount":23.14,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221554-145","date":"2026-09-08","type":"ausgabe","category":"Material","amount":108,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-221704-148","date":"2026-09-09","type":"ausgabe","category":"Material","amount":38.17,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133725-34","date":"2026-09-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-195822-66","date":"2026-09-14","type":"ausgabe","category":"Material","amount":45.8,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222516-161","date":"2026-09-16","type":"ausgabe","category":"Material","amount":43.9,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-222534-162","date":"2026-09-17","type":"ausgabe","category":"Material","amount":157.85,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261008-101847-191","date":"2026-09-18","type":"ausgabe","category":"Material","amount":58.3,"note":"Bauhaus","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110419-62","date":"2026-09-30","type":"ausgabe","category":"Zinsen","amount":16.14,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-224019-53","date":"2026-09-30","type":"ausgabe","category":"Tilgung","amount":842.16,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-125031-22","date":"2026-10-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-172428-39","date":"2026-10-01","type":"ausgabe","category":"Müllleerung","amount":136.05,"note":"SBAZV - Müllgebühren","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133735-35","date":"2026-10-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124046-10","date":"2026-10-15","type":"ausgabe","category":"Wasser/Abwasser","amount":146,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110454-63","date":"2026-10-30","type":"ausgabe","category":"Zinsen","amount":15.77,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-230018-54","date":"2026-10-30","type":"ausgabe","category":"Tilgung","amount":842.53,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-125348-23","date":"2026-11-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133744-36","date":"2026-11-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110519-64","date":"2026-11-30","type":"ausgabe","category":"Zinsen","amount":15.4,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-105929-55","date":"2026-11-30","type":"ausgabe","category":"Tilgung","amount":842.9,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-131644-24","date":"2026-12-01","type":"ausgabe","category":"Versicherung","amount":115.95,"note":"AXA","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-133757-37","date":"2026-12-10","type":"ausgabe","category":"Erdgas - Abschlag","amount":344,"note":"Montana Erdgas","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261005-124150-11","date":"2026-12-15","type":"ausgabe","category":"Wasser/Abwasser","amount":146,"note":"KMS Zossen","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-110539-65","date":"2026-12-30","type":"ausgabe","category":"Zinsen","amount":15.03,"note":"Commerzbank","unit":"","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"B-20261006-105959-56","date":"2026-12-30","type":"ausgabe","category":"Tilgung","amount":843.72,"note":"Commerzbank","unit":"","taxStatus":2,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132044-27","date":"2026-01-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132104-28","date":"2026-02-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132125-29","date":"2026-03-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132155-30","date":"2026-04-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132219-31","date":"2026-05-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132356-32","date":"2026-06-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132415-33","date":"2026-07-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132432-34","date":"2026-08-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132449-35","date":"2026-09-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132505-36","date":"2026-10-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132519-37","date":"2026-11-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132533-38","date":"2026-12-05","type":"einnahme","category":"Miete","amount":450,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181652-66","date":"2026-01-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181742-67","date":"2026-02-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181816-68","date":"2026-03-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181856-69","date":"2026-04-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181951-70","date":"2026-05-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182000-71","date":"2026-06-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182012-72","date":"2026-07-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182023-73","date":"2026-08-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182033-74","date":"2026-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182042-75","date":"2026-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182054-76","date":"2026-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-182106-77","date":"2026-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":250,"note":"Patrick Kretschmer","unit":"W3","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-173704-41","date":"2026-01-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-173831-42","date":"2026-02-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-173859-43","date":"2026-03-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-173919-44","date":"2026-04-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-173942-45","date":"2026-05-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174552-46","date":"2026-06-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174611-47","date":"2026-07-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174630-48","date":"2026-08-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174702-49","date":"2026-09-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174717-50","date":"2026-10-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174739-51","date":"2026-11-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174754-52","date":"2026-12-05","type":"einnahme","category":"Miete","amount":750,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174853-53","date":"2026-01-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174919-54","date":"2026-02-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-174941-55","date":"2026-03-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175020-56","date":"2026-04-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175035-57","date":"2026-05-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175055-58","date":"2026-06-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175119-59","date":"2026-07-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175135-60","date":"2026-08-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175204-61","date":"2026-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175219-62","date":"2026-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175236-63","date":"2026-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-175309-64","date":"2026-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":200,"note":"Svenja und Dennis Wenzel","unit":"W2","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121555-15","date":"2026-01-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121643-16","date":"2026-02-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121804-17","date":"2026-03-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121825-18","date":"2026-04-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122127-19","date":"2026-05-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122153-20","date":"2026-06-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122218-21","date":"2026-07-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122342-22","date":"2026-08-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122419-23","date":"2026-09-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-122450-24","date":"2026-10-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-123756-25","date":"2026-11-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-123840-26","date":"2026-12-05","type":"einnahme","category":"NK-Vorauszahlung","amount":150,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-120824-6","date":"2026-01-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-120926-7","date":"2026-02-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-120958-8","date":"2026-03-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121028-9","date":"2026-04-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121055-10","date":"2026-06-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121129-11","date":"2026-07-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121156-12","date":"2026-08-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121414-13","date":"2026-09-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-121459-14","date":"2026-10-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132925-39","date":"2026-11-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-132941-40","date":"2026-12-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261005-181426-65","date":"2026-05-05","type":"einnahme","category":"Miete","amount":270,"note":"Wolfgang Kretschmer","unit":"W1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112548-78","date":"2026-03-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112630-79","date":"2026-04-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112644-80","date":"2026-05-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112701-81","date":"2026-06-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112712-82","date":"2026-07-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112721-83","date":"2026-08-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112731-84","date":"2026-09-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112743-85","date":"2026-10-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112800-86","date":"2026-11-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"},{"id":"Z-20261006-112812-87","date":"2026-12-03","type":"einnahme","category":"Miete","amount":1000,"note":"Hofpächter","unit":"G1","taxStatus":1,"createdAt":"2026-10-15T08:34:57.710Z"}]}],"activeProjectId":"p-friedhofsweg4"};
+const KEY = "hausbuch.pwa.v1";
+const ICONS = {
+  dash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>',
+  cam:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>',
+  eur:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18M5 7h13M5 12h10M5 17h15"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-7 8 7"/><path d="M6 9v11h12V9"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.1 2.1M19.1 4.9l-2.2 2.2M7.1 16.9l-2.2 2.1"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l4-1L20 7l-3-3L5 16z"/></svg>',
+  del:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>'
+};
+
+const TAX = {
+  1: { label: "Sofort abziehbar", short: "Steuer", color: "#3E8E5F", hint: "Wirkt sofort als Werbungskosten in der EÜR." },
+  2: { label: "Nicht abziehbar", short: "Privat", color: "#9AA3A0", hint: "Keine Werbungskosten (z. B. Tilgung, Rücklage)." },
+  3: { label: "Über Abschreibung (AfA)", short: "AfA", color: "#C89B3C", hint: "Wird über die Nutzungsdauer abgeschrieben." },
+  4: { label: "Noch zu klären", short: "Offen", color: "#C25B4A", hint: "Noch nicht eingeordnet – fließt nicht in die EÜR ein." }
+};
+const CAT_E = ["Miete", "NK-Vorauszahlung", "NK-Ausgleich", "Kaution", "Zinsen / Erträge", "Sonstige Einnahme"];
+const CAT_A = ["Reparatur & Wartung", "Heizung / Gas", "Strom", "Wasser", "Abwasser", "Müllabfuhr",
+  "Versicherung", "Grundsteuer", "Schornsteinfeger", "Dach & Fassade", "Verwaltung / Verband",
+  "Rechts- & Beratungskosten", "Bankkosten", "Tilgung", "Zinsen", "Rücklage / Erhaltung", "Entsorgung",
+  "Material", "Wartung", "Geräte", "Gebäudeversicherung", "Sonstiges"];
+const AUTO_NICHT_ABZIEHBAR = new Set(["Tilgung", "Tilgung erfolgsneutral", "Rücklage / Erhaltung"]);
+const MONTHS = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+
+const eur = n => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n);
+const parseAmount = s => { const t=(s||"").replace(/\s|€/g,"").replace(/\./g,"").replace(",","."); const v=parseFloat(t); return isNaN(v)?NaN:v; };
+const todayISO = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtDate = iso => { const [y,m,d]=iso.split("-"); return d+"."+m+"."+y; };
+const yearOf = iso => (iso||"").slice(0,4);
+const uid = () => "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,8);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ================= State ================= */
+let state, storageOk = true;
+let year = String(new Date().getFullYear());
+let bkSearch = "", bkFilter = "alle", bkUnit = "alle", bkCat = null;
+const UMLAGE_TERMS = ["wasser","erdgas","versicherung","nsorgung","nsordung","müll","schornstein"];
+function isUmlage(cat) {
+  const c = (cat||"").toLowerCase();
+  if (c.includes("baumaterial")) return false;
+  if (UMLAGE_TERMS.some(t => c.includes(t))) return true;
+  return c.includes("gas") && c.includes("abschlag");
+}
+const CAT_FILTERS = [
+  { key:"miete", label:"Miete", match:b => b.category.toLowerCase()==="miete" },
+  { key:"nkv", label:"NK-Vorauszahlung", match:b => b.category.toLowerCase().includes("vorauszahlung") },
+  { key:"nkr", label:"NK-Rückzahlung", match:b => { const c=b.category.toLowerCase(); return c.includes("rückzahlung")||c.includes("rueckzahlung"); } },
+  { key:"zinsen", label:"Zinsen", match:b => b.category.toLowerCase().startsWith("zinsen") },
+  { key:"tilgung", label:"Tilgung", match:b => b.category.toLowerCase().includes("tilgung") },
+  { key:"wasser", label:"Wasser/Abwasser", match:b => b.category.toLowerCase().includes("wasser") },
+  { key:"erdgas", label:"Erdgas", match:b => b.category.toLowerCase().includes("gas") },
+  { key:"versicherung", label:"Versicherungen", match:b => b.category.toLowerCase().includes("versicherung") },
+  { key:"umlage", label:"Umlagefähig", match:b => b.type==="ausgabe" && isUmlage(b.category) },
+  { key:"nicht-umlage", label:"Nicht umlagefähig", match:b => b.type==="ausgabe" && !isUmlage(b.category) }
+];
+function toggleBkCat(k) { bkCat = (bkCat===k) ? null : k; route(); }
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p && Array.isArray(p.projects) && p.projects.length) { state = p; return; }
+    }
+  } catch (e) { storageOk = false; }
+  state = JSON.parse(JSON.stringify(SEED));
+  state.activeProjectId = state.projects[0].id;
+}
+function saveState() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); storageOk = true; }
+  catch (e) { storageOk = false; }
+}
+const project = () => state.projects.find(p => p.id === state.activeProjectId) || state.projects[0];
+const years = () => {
+  const set = new Set([String(new Date().getFullYear())]);
+  state.projects.forEach(p => p.bookings.forEach(b => set.add(yearOf(b.date))));
+  return [...set].filter(Boolean).sort((a,b) => Number(b)-Number(a));
+};
+
+/* ================= Toast ================= */
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = "none"; }, 2600);
+}
+
+/* ================= Navigation ================= */
+const NAV = [
+  { hash: "#dashboard", label: "Dashboard", icon: "dash" },
+  { hash: "#buchungen", label: "Buchungen", icon: "book" },
+  { hash: "#belege", label: "Belege", icon: "cam" },
+  { hash: "#eur", label: "EÜR", icon: "eur" },
+  { hash: "#objekte", label: "Objekte", icon: "home" },
+];
+function route() {
+  const h = (location.hash || "#dashboard").split("?")[0];
+  renderChrome();
+  const main = document.getElementById("main");
+  if (h === "#buchungen" && location.hash.includes("offen")) { bkFilter = "offen"; }
+  if (h === "#dashboard") renderDashboard(main);
+  else if (h === "#buchungen") renderBookings(main);
+  else if (h === "#belege") renderBelege(main);
+  else if (h === "#eur") renderEur(main);
+  else if (h === "#objekte") renderProjects(main);
+  else if (h === "#einstellungen") renderSettings(main);
+  else renderDashboard(main);
+  window.scrollTo(0, 0);
+}
+function renderChrome() {
+  const h = (location.hash || "#dashboard").split("?")[0];
+  const isSettings = h === "#einstellungen";
+  const navAll = NAV.concat([{ hash: "#einstellungen", label: "Einstellungen", icon: "gear" }]);
+  document.getElementById("bottomnav").innerHTML = navAll.slice(0, 5).map(n =>
+    `<a href="${n.hash}" class="${h===n.hash?"active":""}">${ICONS[n.icon]}<span>${n.label}</span></a>`).join("");
+  document.getElementById("sidebar").innerHTML = `
+    <div class="logo">hausbuch<span>.</span></div>
+    <div class="sub">Buchhaltung für deine Immobilien</div>
+    <nav>${navAll.map(n => `<a href="${n.hash}" class="${h===n.hash?"active":""}">${ICONS[n.icon]} ${n.label}</a>`).join("")}</nav>
+    <button class="btn newbtn" onclick="openBooking()">＋ Neue Buchung</button>`;
+  document.getElementById("topbar").innerHTML = `
+    <div class="logo">hausbuch<span>.</span></div>
+    <select class="pill" onchange="setProject(this.value)">
+      ${state.projects.map(p => `<option value="${p.id}" ${p.id===state.activeProjectId?"selected":""}>${esc(p.name)}</option>`).join("")}
+    </select>
+    <select class="pill" onchange="year=this.value;route()">
+      ${years().map(y => `<option value="${y}" ${y===year?"selected":""}>${y}</option>`).join("")}
+    </select>
+    <a class="iconbtn" href="#einstellungen" title="Einstellungen" style="display:flex;align-items:center;color:#94a3b8">${ICONS.gear}</a>`;
+}
+function setProject(id) { state.activeProjectId = id; saveState(); route(); }
+
+/* ================= Dashboard ================= */
+function renderDashboard(el) {
+  const p = project();
+  const bk = p.bookings.filter(b => yearOf(b.date) === year);
+  const ein = bk.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
+  const aus = bk.filter(b=>b.type==="ausgabe").reduce((s,b)=>s+b.amount,0);
+  const wkp = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===1).reduce((s,b)=>s+b.amount,0);
+  const offen = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===4);
+  const offenSum = offen.reduce((s,b)=>s+b.amount,0);
+
+  const mMax = Math.max(1, ...MONTHS.map((_,i) =>
+    Math.max(
+      bk.filter(b=>b.type==="einnahme"&&parseInt(b.date.slice(5,7))===i+1).reduce((s,b)=>s+b.amount,0),
+      bk.filter(b=>b.type==="ausgabe"&&parseInt(b.date.slice(5,7))===i+1).reduce((s,b)=>s+b.amount,0))));
+  const chart = MONTHS.map((m,i) => {
+    const e = bk.filter(b=>b.type==="einnahme"&&parseInt(b.date.slice(5,7))===i+1).reduce((s,b)=>s+b.amount,0);
+    const a = bk.filter(b=>b.type==="ausgabe"&&parseInt(b.date.slice(5,7))===i+1).reduce((s,b)=>s+b.amount,0);
+    return `<div class="m"><div class="bars">
+      <div class="b in" style="height:${Math.max(e/mMax*118, e>0?3:0)}px" title="Einnahmen ${eur(e)}"></div>
+      <div class="b out" style="height:${Math.max(a/mMax*118, a>0?3:0)}px" title="Ausgaben ${eur(a)}"></div>
+      </div><div class="mlabel">${m}</div></div>`;
+  }).join("");
+
+  const catMap = new Map();
+  bk.filter(b=>b.type==="ausgabe").forEach(b => catMap.set(b.category,(catMap.get(b.category)||0)+b.amount));
+  const cats = [...catMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const cMax = cats.length ? cats[0][1] : 1;
+  const catBars = cats.length ? cats.map(([c,s]) => `
+    <div class="hbar"><div class="row"><span>${esc(c)}</span><b>${eur(s)}</b></div>
+    <div class="track"><div class="fill" style="width:${Math.max(4, s/cMax*100)}%"></div></div></div>`).join("")
+    : `<div class="empty">Noch keine Ausgaben im ${year}.</div>`;
+
+  const photos = p.bookings.filter(b=>b.photo).slice(0,10);
+  const photoStrip = photos.length ? photos.map(b => `
+    <button class="gcard" style="width:128px;flex-shrink:0" onclick="openPhoto('${b.id}')">
+      <img src="${b.photo}" alt=""><div class="gi"><div class="c">${esc(b.category)}</div>
+      <div class="m">${eur(b.amount)} · ${fmtDate(b.date)}</div></div></button>`).join("")
+    : `<div class="empty">Noch keine Belege fotografiert – tippe auf „＋“ und halte den Beleg vor die Kamera.</div>`;
+
+  el.innerHTML = `
+    ${storageOk ? "" : `<div class="storage-banner">⚠️ Speicherung blockiert – Daten gelten nur für diese Sitzung. Nutze <b>Backup exportieren</b> in den Einstellungen!</div>`}
+    <div class="cards">
+      <div class="stat"><div class="lbl">Einnahmen</div><div class="val">${eur(ein)}</div><div class="sub">${year}</div></div>
+      <div class="stat"><div class="lbl">Ausgaben</div><div class="val">${eur(aus)}</div><div class="sub">${year}</div></div>
+      <div class="stat dark"><div class="lbl">Zahlungsüberschuss</div><div class="val">${eur(ein-aus)}</div><div class="sub">Einnahmen − Ausgaben</div></div>
+      <div class="stat"><div class="lbl">EÜR-Überschuss</div><div class="val">${eur(ein-wkp)}</div><div class="sub">steuerwirksam (nur „Sofort abziehbar“)</div></div>
+    </div>
+    ${offen.length ? `<button class="warn" onclick="bkFilter='offen';location.hash='#buchungen'">
+      <b>⚠️ ${offen.length} ${offen.length===1?"Beleg":"Belege"} noch zu klären</b>
+      <span>${eur(offenSum)} fließen noch nicht in die EÜR ein – jetzt einordnen →</span></button>` : ""}
+    <div class="card"><h3>Monatsübersicht ${year}<span style="margin-left:auto;font-size:10px;font-weight:600">🟩 Einnahmen · 🟫 Ausgaben</span></h3>
+      <div class="chart">${chart}</div></div>
+    <div class="card"><h3>Ausgaben nach Kostenart ${year}</h3>${catBars}<div style="height:8px"></div></div>
+    <div class="card"><h3>Letzte fotografierte Belege</h3>
+      <div style="display:flex;gap:10px;overflow-x:auto;padding:4px 16px 14px">${photoStrip}</div></div>`;
+}
+
+/* ================= Buchungen ================= */
+function renderBookings(el) {
+  const p = project();
+  el.innerHTML = `
+    <div class="filters">
+      <input type="search" value="${esc(bkSearch)}" placeholder="Suchen …"
+        oninput="bkSearch=this.value;renderBookingsList()">
+      ${["alle","einnahme","ausgabe","offen","belege"].map(f =>
+        `<button class="chip ${bkFilter===f?"on":""}" onclick="bkFilter='${f}';route()">${
+          f==="alle"?"Alle":f==="einnahme"?"Einnahmen":f==="ausgabe"?"Ausgaben":f==="offen"?"Offen":"Mit Foto"}</button>`).join("")}
+      <span class="count" id="bkcount"></span>
+    </div>
+    <div class="filters">
+      <span class="flbl">Einheit</span>
+      ${["alle"].concat(p.units).map(u =>
+        `<button class="chip ${bkUnit===u?"on":""}" onclick="bkUnit='${u}';route()">${u==="alle"?"Alle":esc(u)}</button>`).join("")}
+      <button class="chip ${bkUnit==="ohne"?"on":""}" onclick="bkUnit='ohne';route()">Ohne</button>
+    </div>
+    <div class="filters">
+      <span class="flbl">Kategorie</span>
+      <button class="chip ${!bkCat?"on":""}" onclick="bkCat=null;route()">Alle</button>
+      ${CAT_FILTERS.map(f =>
+        `<button class="chip ${bkCat===f.key?"on":""}" onclick="toggleBkCat('${f.key}')">${f.label}</button>`).join("")}
+    </div>
+    <p class="smallhint" id="bksum" style="margin:0 4px 10px"></p>
+    <div class="card" id="bklist"></div>
+    <p class="smallhint" style="text-align:center">Steuer-Status je Buchung im Bearbeiten-Dialog einordnen.</p>`;
+  renderBookingsList();
+}
+function renderBookingsList() {
+  const p = project();
+  const q = bkSearch.toLowerCase();
+  const catF = CAT_FILTERS.find(f => f.key === bkCat);
+  const rows = p.bookings
+    .filter(b => yearOf(b.date) === year)
+    .filter(b => bkFilter==="alle" ? true : bkFilter==="offen" ? b.taxStatus===4
+      : bkFilter==="belege" ? !!b.photo : b.type===bkFilter)
+    .filter(b => bkUnit==="alle" ? true : bkUnit==="ohne" ? !b.unit : b.unit===bkUnit)
+    .filter(b => !catF || catF.match(b))
+    .filter(b => !q || (b.note||"").toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
+      || (b.unit||"").toLowerCase().includes(q))
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const list = document.getElementById("bklist");
+  if (!list) return;
+  const cnt = document.getElementById("bkcount");
+  if (cnt) cnt.textContent = rows.length + " Buchungen";
+  const sumEl = document.getElementById("bksum");
+  if (sumEl) {
+    const sE = rows.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
+    const sA = rows.filter(b=>b.type==="ausgabe").reduce((s,b)=>s+b.amount,0);
+    sumEl.innerHTML = `Einnahmen <b style="color:#3E8E5F">${eur(sE)}</b> · Ausgaben <b style="color:#475569">${eur(sA)}</b>`;
+  }
+  if (!rows.length) { list.innerHTML = `<div class="empty">Keine Buchungen gefunden.<br>Neue Buchung über „＋“ erfassen.</div>`; return; }
+  list.innerHTML = rows.map(b => {
+    const isPos = b.type === "einnahme" || b.amount < 0;
+    return `<div class="bkrow">
+      ${b.photo ? `<img class="bkthumb" src="${b.photo}" onclick="openPhoto('${b.id}')">`
+        : `<div class="bkicon ${b.type==="einnahme"?"in":""}">${ICONS.eur}</div>`}
+      <div class="bkmain">
+        <div class="t">${esc(b.category)}${b.unit?` <span class="taxpill" style="background:#e2e8f0;color:#64748b">${esc(b.unit)}</span>`:""}</div>
+        <div class="d">${fmtDate(b.date)}${b.note?" · "+esc(b.note):""}</div>
+      </div>
+      <span class="bkamount ${isPos?"pos":""}">${isPos?"+":"−"} ${eur(Math.abs(b.amount))}</span>
+      <span class="taxpill" style="background:${TAX[b.taxStatus].color}">${TAX[b.taxStatus].short}</span>
+      <div class="bkactions">
+        <button class="iconbtn" onclick="openBooking('${b.id}')" title="Bearbeiten">${ICONS.edit}</button>
+        <button class="iconbtn" onclick="delBooking('${b.id}')" title="Löschen">${ICONS.del}</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function delBooking(id) {
+  const p = project();
+  if (!confirm("Diese Buchung wirklich löschen?")) return;
+  p.bookings = p.bookings.filter(b => b.id !== id);
+  saveState(); route(); toast("Buchung gelöscht");
+}
+
+/* ================= Belege ================= */
+function renderBelege(el) {
+  const p = project();
+  const withPhoto = p.bookings.filter(b => b.photo && yearOf(b.date) === year)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  el.innerHTML = `
+    <p style="font-size:13px;color:#64748b;margin-bottom:10px">
+      ${withPhoto.length} Belege mit Foto im Jahr ${year}. Tippe ein Foto für die Großansicht.</p>
+    ${withPhoto.length ? `<div class="gallery">${withPhoto.map(b => `
+      <button class="gcard" onclick="openPhoto('${b.id}')">
+        <img src="${b.photo}" alt="">
+        <div class="gi"><div class="c">${esc(b.category)}</div>
+        <div class="m"><span>${eur(b.amount)} · ${fmtDate(b.date)}</span>
+        <span class="taxpill" style="background:${TAX[b.taxStatus].color}">${TAX[b.taxStatus].short}</span></div></div>
+      </button>`).join("")}</div>`
+    : `<div class="card"><div class="empty">Noch keine Belege fotografiert im ${year}.<br>
+       Über „＋ Neue Buchung“ Beleg abfotografieren und direkt einordnen.</div></div>`}`;
+}
+function openPhoto(id) {
+  const b = project().bookings.find(x => x.id === id);
+  if (!b || !b.photo) return;
+  const pv = document.getElementById("photo-view");
+  pv.innerHTML = `
+    <div class="pvinfo">${esc(b.category)} · ${eur(b.amount)} · ${fmtDate(b.date)}
+      ${b.unit?" · "+esc(b.unit):""}${b.note?" · "+esc(b.note):""}</div>
+    <img src="${b.photo}" alt="Beleg">
+    <button class="pvclose" onclick="closePhoto()">Schließen</button>`;
+  pv.classList.add("open");
+}
+function closePhoto() { document.getElementById("photo-view").classList.remove("open"); }
+
+/* ================= EÜR ================= */
+function renderEur(el) {
+  const p = project();
+  const bk = p.bookings.filter(b => yearOf(b.date) === year);
+  const ein = bk.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
+  const wkp = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===1).reduce((s,b)=>s+b.amount,0);
+  const afa = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===3).reduce((s,b)=>s+b.amount,0);
+  const priv = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===2).reduce((s,b)=>s+b.amount,0);
+  const offL = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===4);
+  const offS = offL.reduce((s,b)=>s+b.amount,0);
+
+  const byCat = (t, st) => {
+    const m = new Map();
+    bk.filter(b => b.type===t && (t==="einnahme" || b.taxStatus===st))
+      .forEach(b => m.set(b.category,(m.get(b.category)||0)+b.amount));
+    return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+  };
+  const row = (label, val, cls="") => `<div class="eurrow ${cls}"><span>${label}</span><span>${val}</span></div>`;
+  const fmt = s => s < 0 ? eur(s) : "− "+eur(s);
+
+  el.innerHTML = `
+    <div class="card">
+      <h3>EÜR ${year} · ${esc(p.name)} (4-Stufen-Modell)</h3>
+      <div class="eursep"></div>
+      ${byCat("einnahme").map(([c,s]) => row(esc(c), eur(s))).join("")}
+      ${row("Summe Einnahmen", eur(ein), "sum")}
+      <div class="eursep"></div>
+      ${byCat("ausgabe",1).map(([c,s]) => row("Werbungskosten · "+esc(c), fmt(s))).join("")}
+      ${row("Summe Werbungskosten (sofort abziehbar)", fmt(wkp), "sum")}
+      <div class="eursep"></div>
+      ${row("Überschuss der EÜR", eur(ein-wkp), "head")}
+    </div>
+    <div class="card" style="background:var(--card)">
+      <h3>Info-Positionen (nicht in der EÜR enthalten)</h3>
+      ${row("Über Abschreibung (AfA)", eur(afa), "info")}
+      ${row("Nicht abziehbar (Tilgung, Rücklage, privat)", eur(priv), "info")}
+      ${row("Noch zu klären "+(offL.length?`<span class="eurbadge">${offL.length}</span>`:""), eur(offS), "info")}
+      <div class="smallhint" style="padding:0 16px 14px">Nur Belege mit Status „Sofort abziehbar“ fließen als Werbungskosten in die EÜR ein.
+      „Noch zu klären“ wird ausgeklammert, bis du es einordnest.</div>
+    </div>`;
+}
+
+/* ================= Objekte ================= */
+function renderProjects(el) {
+  el.innerHTML = `
+    <div class="card" style="padding:16px">
+      <h3 style="padding:0 0 10px">Neues Objekt anlegen</h3>
+      <div class="grid2">
+        <div class="field"><label>Name</label><input id="np-name" placeholder="z. B. Lange Str. 5"></div>
+        <div class="field"><label>Adresse (optional)</label><input id="np-addr" placeholder="Straße, PLZ Ort"></div>
+      </div>
+      <div class="field"><label>Einheiten (kommagetrennt, optional)</label>
+        <input id="np-units" placeholder="z. B. W1, W2, W3, G1"></div>
+      <button class="btn" onclick="addProject()">Objekt anlegen</button>
+    </div>
+    ${state.projects.map(p => `
+      <div class="projcard ${p.id===state.activeProjectId?"active":""}">
+        <div class="projhead">
+          <input value="${esc(p.name)}" onchange="renameProject('${p.id}', this.value)">
+          ${p.id===state.activeProjectId?'<span class="badge-active">Aktiv</span>':
+            `<button class="btn outline" style="padding:6px 14px;font-size:12px" onclick="setProject('${p.id}')">Aktivieren</button>`}
+          <span style="margin-left:auto"></span>
+          ${state.projects.length>1?`<button class="iconbtn" title="Löschen" style="color:#94a3b8" onclick="delProject('${p.id}')">${ICONS.del}</button>`:""}
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px">${esc(p.address||"—")} · ${p.bookings.length} Buchungen</div>
+        <div class="field" style="margin-bottom:0"><label>Einheiten (kommagetrennt)</label>
+          <input value="${esc(p.units.join(", "))}" onchange="setUnits('${p.id}', this.value)"></div>
+      </div>`).join("")}`;
+}
+function addProject() {
+  const name = document.getElementById("np-name").value.trim();
+  if (!name) { toast("Bitte einen Namen angeben"); return; }
+  state.projects.push({
+    id: uid(), name,
+    address: document.getElementById("np-addr").value.trim(),
+    units: document.getElementById("np-units").value.split(",").map(s=>s.trim()).filter(Boolean),
+    bookings: []
+  });
+  saveState(); renderChrome(); route(); toast('Objekt „'+name+'“ angelegt');
+}
+function renameProject(id, name) {
+  const p = state.projects.find(x=>x.id===id); const n = name.trim();
+  if (n && p) { p.name = n; saveState(); renderChrome(); }
+}
+function setUnits(id, val) {
+  const p = state.projects.find(x=>x.id===id);
+  if (p) { p.units = val.split(",").map(s=>s.trim()).filter(Boolean); saveState(); }
+}
+function delProject(id) {
+  const p = state.projects.find(x=>x.id===id);
+  if (!p || !confirm(`Objekt „${p.name}“ mit ${p.bookings.length} Buchungen endgültig löschen?`)) return;
+  state.projects = state.projects.filter(x=>x.id!==id);
+  if (state.activeProjectId===id) state.activeProjectId = state.projects[0].id;
+  saveState(); renderChrome(); route(); toast("Objekt gelöscht");
+}
+
+/* ================= Buchungs-Dialog ================= */
+let form = null, editingId = null, photoMode = "camera";
+function openBooking(id) {
+  const p = project();
+  editingId = id || null;
+  const b = id ? p.bookings.find(x=>x.id===id) : null;
+  form = b ? { ...b } : { date: todayISO(), type: "ausgabe", category: "Reparatur & Wartung",
+    amount: 0, note: "", unit: "", taxStatus: 4, photo: undefined };
+  photoMode = "camera";
+  renderBookingModal();
+}
+function renderBookingModal() {
+  const p = project();
+  const cats = form.type === "einnahme" ? CAT_E : CAT_A;
+  const catOptions = (form.category && !cats.includes(form.category) ? [form.category] : [])
+    .concat(cats);
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="closeBooking()"></div>
+    <div class="modal">
+      <h2>${ICONS.eur} ${editingId ? "Buchung bearbeiten" : "Neue Buchung"}</h2>
+      <div class="field">
+        <label>Beleg abfotografieren</label>
+        ${form.photo ? `
+          <div class="photopreview"><img src="${form.photo}">
+            <button class="photodel" onclick="form.photo=undefined;renderBookingModal()">🗑</button></div>`
+        : `
+          <div class="photobox">
+            <div class="photomode">
+              <button class="${photoMode==="camera"?"on":""}" onclick="photoMode='camera';renderBookingModal()">📱 Kamera</button>
+              <button class="${photoMode==="file"?"on":""}" onclick="photoMode='file';renderBookingModal()">🗂 Datei</button>
+            </div>
+            <label class="photolabel">📷 Beleg fotografieren
+              <input type="file" accept="image/*" style="display:none" ${photoMode==="camera"?'capture="environment"':""}
+                onchange="pickPhoto(this.files[0])"></label>
+            <div class="smallhint">Am Handy öffnet die Kamera, am PC der Datei-Dialog.</div>
+          </div>`}
+      </div>
+      <div class="field typetoggle">
+        <button class="typeopt ${form.type==="ausgabe"?"on":""}" onclick="setType('ausgabe')">− Ausgabe</button>
+        <button class="typeopt ${form.type==="einnahme"?"on":""}" onclick="setType('einnahme')">＋ Einnahme</button>
+      </div>
+      <div class="grid2" style="margin-bottom:14px">
+        <div class="field" style="margin:0"><label>Betrag (€)</label>
+          <input id="f-amount" inputmode="decimal" placeholder="0,00"
+            value="${form.amount ? String(form.amount.toFixed(2)).replace(".", ",") : ""}"></div>
+        <div class="field" style="margin:0"><label>Datum</label>
+          <input id="f-date" type="date" value="${form.date}"></div>
+      </div>
+      <div class="field"><label>Kategorie</label>
+        <select id="f-cat" onchange="setCategory(this.value)">
+          ${catOptions.map(c => `<option value="${esc(c)}" ${c===form.category?"selected":""}>${esc(c)}</option>`).join("")}
+        </select></div>
+      ${p.units.length ? `<div class="field"><label>Einheit (optional)</label>
+        <select onchange="form.unit = this.value==='keine' ? '' : this.value;renderBookingModal()">
+          <option value="keine" ${!form.unit?"selected":""}>– keine Zuordnung –</option>
+          ${p.units.map(u => `<option value="${esc(u)}" ${u===form.unit?"selected":""}>${esc(u)}</option>`).join("")}
+        </select></div>` : ""}
+      <div class="field"><label>Steuer-Status</label>
+        <div class="taxgrid">${[1,2,3,4].map(s =>
+          `<button class="taxopt ${form.taxStatus===s?"on":""}" onclick="form.taxStatus=${s};renderBookingModal()">${TAX[s].label}</button>`).join("")}</div>
+        <div class="taxhint">${TAX[form.taxStatus].hint}</div></div>
+      <div class="field"><label>Vermerk (optional)</label>
+        <textarea id="f-note" rows="2" placeholder="z. B. Lieferschein-Nr., Vertragspartner …">${esc(form.note||"")}</textarea></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn gray" style="flex:1" onclick="closeBooking()">Abbrechen</button>
+        <button class="btn" style="flex:1" onclick="saveBooking()">Speichern</button>
+      </div>
+    </div>`;
+  root.classList.add("open");
+}
+function closeBooking() {
+  document.getElementById("modal-root").classList.remove("open");
+  form = null; editingId = null;
+}
+function setType(t) {
+  form.type = t;
+  form.category = t === "einnahme" ? CAT_E[0] : CAT_A[0];
+  if (t === "einnahme") form.taxStatus = 1;
+  else if (AUTO_NICHT_ABZIEHBAR.has(form.category)) form.taxStatus = 2;
+  renderBookingModal();
+}
+function setCategory(c) {
+  form.category = c;
+  if (AUTO_NICHT_ABZIEHBAR.has(c)) form.taxStatus = 2;
+  else if (form.taxStatus === 2 && !AUTO_NICHT_ABZIEHBAR.has(c) && form.type === "ausgabe") form.taxStatus = 4;
+  renderBookingModal();
+}
+function pickPhoto(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1000, scale = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.round(img.width * scale));
+      cv.height = Math.max(1, Math.round(img.height * scale));
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      form.photo = cv.toDataURL("image/jpeg", 0.65);
+      renderBookingModal();
+    };
+    img.src = String(reader.result);
+  };
+  reader.readAsDataURL(file);
+}
+function saveBooking() {
+  const p = project();
+  const amount = parseAmount(document.getElementById("f-amount").value);
+  form.date = document.getElementById("f-date").value;
+  form.amount = amount;
+  form.note = document.getElementById("f-note").value;
+  if (!form.date || isNaN(amount) || amount === 0) { toast("Bitte Datum und Betrag prüfen"); return; }
+  if (editingId) {
+    const i = p.bookings.findIndex(b => b.id === editingId);
+    if (i >= 0) p.bookings[i] = { ...form, id: editingId };
+  } else {
+    p.bookings.unshift({ ...form, id: uid(), createdAt: new Date().toISOString() });
+  }
+  saveState(); closeBooking(); route();
+  toast(editingId ? "Buchung aktualisiert" : "Buchung gespeichert");
+}
+
+/* ================= Einstellungen ================= */
+function renderSettings(el) {
+  const p = project();
+  const nBookings = state.projects.reduce((s,x)=>s+x.bookings.length,0);
+  const nPhotos = state.projects.reduce((s,x)=>s+x.bookings.filter(b=>b.photo).length,0);
+  const kb = Math.round(JSON.stringify(state).length/1024);
+  el.innerHTML = `
+    ${storageOk ? "" : `<div class="storage-banner">⚠️ Der Browser blockiert die lokale Speicherung.
+      Daten gelten nur für diese Sitzung – regelmäßig <b>Backup exportieren</b>!</div>`}
+    <div class="card" style="padding:16px">
+      <h3 style="padding:0 0 10px">📱 Als App installieren</h3>
+      <p style="font-size:13px;color:#64748b;line-height:1.5">
+        Diese Seite ist eine installierbare Web-App (PWA) – auf Android mit eigenem Icon, Vollbild und offline nutzbar.</p>
+      ${deferredInstall
+        ? `<div style="margin-top:12px"><button class="btn" onclick="doInstall()">📲 Jetzt als App installieren</button></div>`
+        : `<p style="font-size:13px;color:#64748b;line-height:1.5;margin-top:8px">Der Button erscheint automatisch, sobald Chrome bereit ist – ggf. Seite einmal <b>neu laden</b>. Alternativ: Menü ⋮ → <b>„App installieren“</b> bzw. <b>„Zum Startbildschirm hinzufügen“</b>.</p>`}
+    </div>
+    <div class="card" style="padding:16px">
+      <h3 style="padding:0 0 10px">💾 Backup</h3>
+      <p class="smallhint" style="margin-bottom:10px">${state.projects.length} Objekte · ${nBookings} Buchungen ·
+        ${nPhotos} Belegfotos · ca. ${kb} KB</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <button class="btn" onclick="exportBackup()">⬇ Backup exportieren (JSON)</button>
+        <label class="btn outline">⬆ Backup importieren
+          <input type="file" accept="application/json,.json" style="display:none"
+            onchange="importBackup(this.files[0])"></label>
+      </div>
+    </div>
+    <div class="card" style="padding:16px">
+      <h3 style="padding:0 0 10px">CSV-Import aus Excel</h3>
+      <p class="smallhint" style="margin-bottom:8px">
+        Format: <code>Datum;Typ;Betrag;Kategorie;Vermerk;Einheit;Steuer-Status</code> · Semikolon-getrennt ·
+        Datum TT.MM.JJJJ · Betrag mit Komma · Import ins aktive Objekt <b>${esc(p.name)}</b>.</p>
+      <div class="field"><textarea id="csv-text" rows="5"
+        placeholder="01.03.2026;Ausgabe;89,50;Reparatur & Wartung;Handwerker;W1;sofort abziehbar"></textarea></div>
+      <button class="btn" onclick="importCSV()">CSV importieren</button>
+    </div>
+    <div class="card" style="padding:16px;background:var(--card)">
+      <h3 style="padding:0 0 10px;color:#64748b">Alle Daten zurücksetzen</h3>
+      <p class="smallhint" style="margin-bottom:10px">Löscht sämtliche Objekte und Buchungen in dieser App
+        (die eingebetteten Buchungen aus der Migration werden wiederhergestellt).</p>
+      <button class="btn danger" onclick="resetAll()">Zurücksetzen …</button>
+    </div>
+    <p class="smallhint" style="text-align:center">hausbuch. · alle Daten bleiben lokal auf deinem Gerät</p>`;
+}
+function exportBackup() {
+  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), data: state })],
+    { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "hausbuch-backup-" + todayISO() + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast("Backup exportiert");
+}
+function importBackup(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const parsed = JSON.parse(String(r.result));
+      const d = parsed.data || parsed;
+      if (!d.projects || !Array.isArray(d.projects)) throw new Error("Format");
+      state = d; state.activeProjectId = state.projects[0].id;
+      saveState(); renderChrome(); route();
+      toast("Backup importiert: " + d.projects.length + " Objekte");
+    } catch (e) { toast("Ungültige Backup-Datei"); }
+  };
+  r.readAsText(file);
+}
+function parseGermanDate(s) {
+  const t = (s||"").trim();
+  let m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return t;
+  return null;
+}
+function parseTaxStatus(s) {
+  const t = (s||"").toLowerCase();
+  if (["1","sofort abziehbar","abziehbar","steuerlich"].some(k=>t.includes(k))) return 1;
+  if (["2","nicht abziehbar","privat","tilgung","rücklage","ruecklage"].some(k=>t.includes(k))) return 2;
+  if (["3","afa","abschreibung"].some(k=>t.includes(k))) return 3;
+  return 4;
+}
+function importCSV() {
+  const text = document.getElementById("csv-text").value;
+  const p = project();
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  let ok = 0, skipped = 0;
+  for (const line of lines) {
+    const c = line.split(/;|\t/).map(x => x.trim().replace(/^"|"$/g, ""));
+    if (/datum/i.test(c[0])) continue;
+    const date = parseGermanDate(c[0]||"");
+    const amount = parseAmount(c[2]||"");
+    if (!date || isNaN(amount) || amount === 0) { skipped++; continue; }
+    const rt = (c[1]||"").toLowerCase();
+    const type = /einnahme|miete|gutschrift|haben/.test(rt) ? "einnahme"
+      : /ausgabe|soll/.test(rt) ? "ausgabe" : amount < 0 ? "ausgabe" : "einnahme";
+    p.bookings.push({
+      id: uid(), date, type,
+      category: c[3] || "Sonstiges",
+      amount: type === "ausgabe" ? amount : Math.abs(amount),
+      note: c[4] || "", unit: c[5] || "",
+      taxStatus: type === "einnahme" ? 1 : parseTaxStatus(c[6]||""),
+      createdAt: new Date().toISOString()
+    });
+    ok++;
+  }
+  document.getElementById("csv-text").value = "";
+  saveState(); route();
+  toast(ok + " Buchungen importiert" + (skipped ? ", " + skipped + " übersprungen" : ""));
+}
+function resetAll() {
+  if (!confirm("Wirklich ALLE Daten zurücksetzen?")) return;
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  loadState(); saveState(); renderChrome(); route(); toast("App zurückgesetzt");
+}
+
+/* ================= Init ================= */
+document.getElementById("fab").addEventListener("click", () => openBooking());
+window.addEventListener("hashchange", route);
+loadState();
+if (!years().includes(year)) { year = years()[0]; }
+route();
+/* ---- PWA-Installation (Android/Chrome) ---- */
+var deferredInstall = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  const h = location.hash || "#dashboard";
+  if (h === "#einstellungen") route();
+});
+async function doInstall() {
+  if (!deferredInstall) { toast("Chrome ist noch nicht bereit – bitte Seite einmal neu laden."); return; }
+  deferredInstall.prompt();
+  const c = await deferredInstall.userChoice;
+  deferredInstall = null;
+  if (location.hash === "#einstellungen") route();
+  if (c && c.outcome === "accepted") toast("hausbuch. wird installiert – gleich auf dem Startbildschirm! 🎉");
+}
+window.addEventListener("appinstalled", () => {
+  deferredInstall = null;
+  toast("App installiert! Du findest hausbuch. jetzt auf dem Startbildschirm.");
+  if (location.hash === "#einstellungen") route();
+});
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
