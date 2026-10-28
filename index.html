@@ -159,6 +159,7 @@
   #modal-root { position: fixed; inset: 0; z-index: 50; display: none; }
   #modal-root.open { display: block; }
   .modal-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,.55); }
+  .nkinp { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 13px; background: #fff; }
   .modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(440px, calc(100vw - 24px));
     max-height: calc(100vh - 40px); overflow-y: auto; background: #fff; border-radius: 18px; padding: 18px; }
   .modal h2 { font-size: 16px; color: var(--green); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
@@ -260,7 +261,7 @@ const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<"
 /* ================= State ================= */
 let state, storageOk = true;
 let year = String(new Date().getFullYear());
-let bkSearch = "", bkFilter = "alle", bkUnit = "alle", bkCat = null;
+let bkSearch = "", bkFilter = "alle", bkUnit = "alle", bkCat = null; let dashIst = false;
 const UMLAGE_TERMS = ["wasser","erdgas","versicherung","nsorgung","nsordung","müll","schornstein"];
 function isUmlage(cat) {
   const c = (cat||"").toLowerCase();
@@ -319,6 +320,7 @@ const NAV = [
   { hash: "#buchungen", label: "Buchungen", icon: "book" },
   { hash: "#belege", label: "Belege", icon: "cam" },
   { hash: "#eur", label: "EÜR", icon: "eur" },
+  { hash: "#nk", label: "NK-Abrechnung", icon: "eur" },
   { hash: "#objekte", label: "Objekte", icon: "home" },
 ];
 function route() {
@@ -330,6 +332,7 @@ function route() {
   else if (h === "#buchungen") renderBookings(main);
   else if (h === "#belege") renderBelege(main);
   else if (h === "#eur") renderEur(main);
+  else if (h === "#nk") renderNk(main);
   else if (h === "#objekte") renderProjects(main);
   else if (h === "#einstellungen") renderSettings(main);
   else renderDashboard(main);
@@ -339,7 +342,7 @@ function renderChrome() {
   const h = (location.hash || "#dashboard").split("?")[0];
   const isSettings = h === "#einstellungen";
   const navAll = NAV.concat([{ hash: "#einstellungen", label: "Einstellungen", icon: "gear" }]);
-  document.getElementById("bottomnav").innerHTML = navAll.slice(0, 5).map(n =>
+  document.getElementById("bottomnav").innerHTML = navAll.filter(n => n.hash !== "#nk").slice(0, 5).map(n =>
     `<a href="${n.hash}" class="${h===n.hash?"active":""}">${ICONS[n.icon]}<span>${n.label}</span></a>`).join("");
   document.getElementById("sidebar").innerHTML = `
     <div class="logo">hausbuch<span>.</span></div>
@@ -362,10 +365,20 @@ function setProject(id) { state.activeProjectId = id; saveState(); route(); }
 function renderDashboard(el) {
   const p = project();
   const bk = p.bookings.filter(b => yearOf(b.date) === year);
-  const ein = bk.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
-  const aus = bk.filter(b=>b.type==="ausgabe").reduce((s,b)=>s+b.amount,0);
-  const wkp = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===1).reduce((s,b)=>s+b.amount,0);
-  const offen = bk.filter(b=>b.type==="ausgabe"&&b.taxStatus===4);
+  const today = new Date();
+  const curY = today.getFullYear();
+  const lastD = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const cutoff = year < curY ? year+"-12-31" : year === curY
+    ? year+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(lastD).padStart(2,"0")
+    : year+"-01-01";
+  const bkIst = dashIst ? bk.filter(b => b.date <= cutoff) : bk;
+  const future = bk.filter(b => b.date > cutoff);
+  const futEin = future.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
+  const futAus = future.filter(b=>b.type==="ausgabe").reduce((s,b)=>s+b.amount,0);
+  const ein = bkIst.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
+  const aus = bkIst.filter(b=>b.type==="ausgabe").reduce((s,b)=>s+b.amount,0);
+  const wkp = bkIst.filter(b=>b.type==="ausgabe"&&b.taxStatus===1).reduce((s,b)=>s+b.amount,0);
+  const offen = bkIst.filter(b=>b.type==="ausgabe"&&b.taxStatus===4);
   const offenSum = offen.reduce((s,b)=>s+b.amount,0);
 
   const mMax = Math.max(1, ...MONTHS.map((_,i) =>
@@ -397,14 +410,24 @@ function renderDashboard(el) {
       <div class="m">${eur(b.amount)} · ${fmtDate(b.date)}</div></div></button>`).join("")
     : `<div class="empty">Noch keine Belege fotografiert – tippe auf „＋“ und halte den Beleg vor die Kamera.</div>`;
 
+  const sub = dashIst ? "Ist bis "+cutoff.split("-").reverse().join(".") : String(year);
+  const tog = (on) => "border-radius:99px;padding:5px 12px;font-size:12px;font-weight:"+(on?700:500)+";background:"+(on?"#fff":"transparent")+";color:"+(on?"#2E5A47":"#64748b")+";box-shadow:"+(on?"0 1px 3px rgba(0,0,0,.12)":"none")+";cursor:pointer;border:none";
   el.innerHTML = `
     ${storageOk ? "" : `<div class="storage-banner">⚠️ Speicherung blockiert – Daten gelten nur für diese Sitzung. Nutze <b>Backup exportieren</b> in den Einstellungen!</div>`}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em">Kennzahlen</span>
+      <span style="display:flex;background:#f1f5f4;border-radius:99px;padding:2px">
+        <button style="${tog(!dashIst)}" onclick="dashIst=false;route()">Gesamtjahr</button>
+        <button style="${tog(dashIst)}" onclick="dashIst=true;route()">Ist bis Monatsende</button>
+      </span>
+    </div>
     <div class="cards">
-      <div class="stat"><div class="lbl">Einnahmen</div><div class="val">${eur(ein)}</div><div class="sub">${year}</div></div>
-      <div class="stat"><div class="lbl">Ausgaben</div><div class="val">${eur(aus)}</div><div class="sub">${year}</div></div>
+      <div class="stat"><div class="lbl">Einnahmen</div><div class="val">${eur(ein)}</div><div class="sub">${sub}</div></div>
+      <div class="stat"><div class="lbl">Ausgaben</div><div class="val">${eur(aus)}</div><div class="sub">${sub}</div></div>
       <div class="stat dark"><div class="lbl">Zahlungsüberschuss</div><div class="val">${eur(ein-aus)}</div><div class="sub">Einnahmen − Ausgaben</div></div>
       <div class="stat"><div class="lbl">EÜR-Überschuss</div><div class="val">${eur(ein-wkp)}</div><div class="sub">steuerwirksam (nur „Sofort abziehbar“)</div></div>
     </div>
+    ${dashIst && future.length ? `<div class="card" style="padding:10px 16px;font-size:12px;color:#64748b">🗓 <b style="color:#1f2937">${future.length} zukünftige Buchungen</b> ausgeblendet (nach dem ${cutoff.split("-").reverse().join(".")}): Einnahmen <b style="color:#3E8E5F">${eur(futEin)}</b> · Ausgaben <b style="color:#475569">${eur(futAus)}</b></div>` : ""}
     ${offen.length ? `<button class="warn" onclick="bkFilter='offen';location.hash='#buchungen'">
       <b>⚠️ ${offen.length} ${offen.length===1?"Beleg":"Belege"} noch zu klären</b>
       <span>${eur(offenSum)} fließen noch nicht in die EÜR ein – jetzt einordnen →</span></button>` : ""}
@@ -525,6 +548,176 @@ function openPhoto(id) {
 function closePhoto() { document.getElementById("photo-view").classList.remove("open"); }
 
 /* ================= EÜR ================= */
+/* ================= NK-Abrechnung ================= */
+const UNIT_DEFAULTS = {
+  W1: { mieter: "Wolfgang Kretschmer", flaeche: 46, personen: 1, mietbeginn: "2025-01-01", umlage: true },
+  W2: { mieter: "Svenja & Dennis Wenzel", flaeche: 63, personen: 2, mietbeginn: "2025-09-01", umlage: true },
+  W3: { mieter: "Patrick Kretschmer", flaeche: 100, personen: 1, mietbeginn: "2025-01-01", umlage: true },
+  G1: { mieter: "Pferdehof (Janine Martin)", flaeche: 0, personen: 0, mietbeginn: "2025-01-01", umlage: false }
+};
+function unitMetaOf(p, unit) {
+  if (p.unitMeta && p.unitMeta[unit]) return p.unitMeta[unit];
+  return UNIT_DEFAULTS[unit] || { mieter: unit, flaeche: 0, personen: 0, mietbeginn: year+"-01-01", umlage: false };
+}
+function daysInYear(y) { return ((y%4===0 && y%100!==0) || y%400===0) ? 366 : 365; }
+function miettage(beginn, y) {
+  const yS = Date.UTC(y,0,1), yE = Date.UTC(y+1,0,1);
+  const b = beginn ? Date.parse(beginn) : yS;
+  if (isNaN(b) || b >= yE) return 0;
+  return Math.round((yE - Math.max(b,yS)) / 86400000);
+}
+function inUmlage(b) { return b.nkUmlage === true || (b.nkUmlage !== false && isUmlage(b.category)); }
+let nkDraft = null;
+function renderNk(el) {
+  const p = project();
+  const mOf = u => unitMetaOf(p, u);
+  const uUnits = p.units.filter(u => mOf(u).umlage && mOf(u).flaeche > 0);
+  const D = uUnits.reduce((s,u) => s + mOf(u).flaeche, 0) * daysInYear(year);
+  const wOf = u => mOf(u).flaeche * miettage(mOf(u).mietbeginn, year);
+  const kand = p.bookings
+    .filter(b => b.type === "ausgabe" && yearOf(b.date) === year)
+    .filter(b => b.nkUmlage !== undefined || isUmlage(b.category))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const anteile = kand.map(b => {
+    const a = {};
+    uUnits.forEach(u => { a[u] = Math.round(b.amount * wOf(u) / D * 100) / 100; });
+    a.LS = Math.round((b.amount - uUnits.reduce((s,u) => s + a[u], 0)) * 100) / 100;
+    return { b, a };
+  });
+  const umg = anteile.filter(x => inUmlage(x.b));
+  const umgSum = umg.reduce((s,x) => s + x.b.amount, 0);
+  const lsSum = umg.reduce((s,x) => s + x.a.LS, 0);
+  const kostenanteil = u => umg.reduce((s,x) => s + x.a[u], 0);
+  const vorauszahlung = u => p.bookings
+    .filter(b => b.type === "einnahme" && yearOf(b.date) === year && b.unit === u
+      && b.category.toLowerCase().includes("vorauszahlung"))
+    .reduce((s,b) => s + b.amount, 0);
+
+  const unitCard = u => {
+    const m = mOf(u), ka = kostenanteil(u), vz = vorauszahlung(u), erg = vz - ka;
+    return `<div class="card" style="padding:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="taxpill" style="background:#E6F3EE;color:#2E5A47">${u}</span>
+        <b style="font-size:14px;color:#1f2937">${esc(m.mieter)}</b>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">
+        ${m.flaeche} m² · ${miettage(m.mietbeginn, year)} Miettage${D>0 ? ` · Anteil ${(wOf(u)/D*100).toFixed(1)}%` : ""}</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b">
+        <span>Kostenanteil</span><b style="color:#1f2937">${eur(ka)}</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b">
+        <span>Vorauszahlung bezahlt</span><b style="color:#1f2937">${eur(vz)}</b></div>
+      <div style="border-top:1px solid #eef2f1;margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;font-size:14px">
+        <b style="color:#475569">${erg >= 0 ? "Guthaben" : "Nachzahlung"}</b>
+        <b style="color:${erg >= 0 ? "#3E8E5F" : "#C25B4A"}">${erg >= 0 ? "+" : "−"} ${eur(Math.abs(erg))}</b>
+      </div>
+    </div>`;
+  };
+  const nichtUml = p.units.filter(u => !uUnits.includes(u));
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div>
+        <h2 style="font-size:17px;color:#1f2937">NK-Abrechnung ${year}</h2>
+        <p style="font-size:11px;color:#94a3b8">Schlüssel: Fläche × Miettage · Leerstand bleibt beim Eigentümer</p>
+      </div>
+      <button class="btn outline" style="margin-left:auto" onclick="openNkMeta()">✎ Stammdaten</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+      <div class="card" style="padding:12px"><div style="font-size:11px;color:#94a3b8">Umlagefähige Kosten</div>
+        <div style="font-size:17px;font-weight:700;color:#1f2937">${eur(umgSum)}</div>
+        <div style="font-size:10px;color:#94a3b8">${umg.length} Belege</div></div>
+      <div class="card" style="padding:12px"><div style="font-size:11px;color:#94a3b8">Leerstandsanteil</div>
+        <div style="font-size:17px;font-weight:700;color:#C89B3C">${eur(lsSum)}</div>
+        <div style="font-size:10px;color:#94a3b8">trägt der Eigentümer</div></div>
+      <div class="card" style="padding:12px"><div style="font-size:11px;color:#94a3b8">Umlage auf Mieter</div>
+        <div style="font-size:17px;font-weight:700;color:#1f2937">${eur(umgSum - lsSum)}</div>
+        <div style="font-size:10px;color:#94a3b8">${uUnits.join(" · ")}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+      ${uUnits.map(unitCard).join("")}
+    </div>
+    ${nichtUml.map(u => {
+      const vz = vorauszahlung(u);
+      return `<div class="card" style="padding:12px;background:#fdf8ee;border:1px solid #eedfc4">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="taxpill" style="background:#f3e8cc;color:#97701e">${u}</span>
+          <b style="font-size:14px;color:#1f2937">${esc(mOf(u).mieter)}</b>
+          <span style="margin-left:auto;font-size:10px;font-weight:700;color:#97701e">nicht umgelegt</span>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:6px">${vz > 0
+          ? `Vorauszahlungen im ${year}: ${eur(vz)} – nicht umlagefähig, separat mit dem Mieter abrechnen.`
+          : "Nimmt an der NK-Umlage nicht teil."}</p>
+      </div>`;
+    }).join("")}
+    <div class="card">
+      <div style="padding:12px 16px 2px"><b style="font-size:14px;color:#1f2937">Belege der Abrechnung (${kand.length})</b>
+        <p style="font-size:11px;color:#94a3b8;margin-top:2px">✓ = wird umgelegt · per Tipp umschalten · Anteile: ${uUnits.join(" / ")} / Leerstand</p></div>
+      ${kand.length === 0 ? `<div class="empty">Keine umlagefähigen Belege im ${year}.</div>` :
+        kand.map(({b, a}) => `
+        <div class="bkrow">
+          <button class="iconbtn" style="background:${inUmlage(b) ? "#2E5A47" : "#f1f5f4"};color:${inUmlage(b) ? "#fff" : "#94a3b8"};font-weight:700;width:26px;height:26px;border-radius:7px"
+            onclick="toggleNk('${b.id}')" title="Umlage umschalten">${inUmlage(b) ? "✓" : "✕"}</button>
+          <div class="bkmain">
+            <div class="t">${esc(b.category)}</div>
+            <div class="d">${fmtDate(b.date)}${b.note ? " · " + esc(b.note) : ""}
+              <span style="color:#94a3b8"> · ${uUnits.map(u => u + " " + eur(a[u])).join(" · ")}${Math.abs(a.LS) > 0.005 ? " · LS " + eur(a.LS) : ""}</span></div>
+          </div>
+          <span class="bkamount" style="${inUmlage(b) ? "" : "color:#cbd5e1;text-decoration:line-through"}">${eur(b.amount)}</span>
+        </div>`).join("")}
+    </div>`;
+}
+function toggleNk(id) {
+  const p = project();
+  const b = p.bookings.find(x => x.id === id);
+  if (!b) return;
+  b.nkUmlage = !inUmlage(b);
+  saveState(); route();
+  toast(b.nkUmlage ? "Beleg wird umgelegt" : "Beleg von der Umlage ausgenommen");
+}
+function openNkMeta() {
+  const p = project();
+  nkDraft = {};
+  p.units.forEach(u => { nkDraft[u] = { ...unitMetaOf(p, u) }; });
+  renderNkMeta();
+}
+function renderNkMeta() {
+  const p = project();
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="closeNkMeta()"></div>
+    <div class="modal">
+      <h2>Stammdaten der Einheiten</h2>
+      ${p.units.map(u => { const m = nkDraft[u]; return `
+        <div style="border:1px solid #e8e8e4;border-radius:10px;padding:10px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="taxpill" style="background:#E6F3EE;color:#2E5A47">${u}</span>
+            <input type="text" value="${esc(m.mieter)}" class="nkinp" style="flex:1" onchange="nkDraft['${u}'].mieter=this.value">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div><label style="font-size:10px;color:#94a3b8">Fläche m²</label>
+              <input type="number" value="${m.flaeche}" class="nkinp" onchange="nkDraft['${u}'].flaeche=Number(this.value)"></div>
+            <div><label style="font-size:10px;color:#94a3b8">Personen</label>
+              <input type="number" value="${m.personen}" class="nkinp" onchange="nkDraft['${u}'].personen=Number(this.value)"></div>
+            <div><label style="font-size:10px;color:#94a3b8">Mietbeginn</label>
+              <input type="date" value="${m.mietbeginn}" class="nkinp" onchange="nkDraft['${u}'].mietbeginn=this.value"></div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin-top:8px;cursor:pointer">
+            <input type="checkbox" ${m.umlage ? "checked" : ""} style="accent-color:#2E5A47;width:15px;height:15px"
+              onchange="nkDraft['${u}'].umlage=this.checked"> Nimmt an der NK-Umlage teil (Fläche × Miettage)</label>
+        </div>`; }).join("")}
+      <button class="btn" style="width:100%" onclick="saveNkMeta()">Speichern</button>
+    </div>`;
+}
+function closeNkMeta() {
+  document.getElementById("modal-root").innerHTML = "";
+  nkDraft = null;
+}
+function saveNkMeta() {
+  const p = project();
+  p.unitMeta = nkDraft;
+  saveState(); closeNkMeta(); route();
+  toast("Stammdaten gespeichert");
+}
+
 function renderEur(el) {
   const p = project();
   const bk = p.bookings.filter(b => yearOf(b.date) === year);
@@ -545,6 +738,10 @@ function renderEur(el) {
   const fmt = s => s < 0 ? eur(s) : "− "+eur(s);
 
   el.innerHTML = `
+    <div class="card" style="background:#E6F3EE;border:1px solid #cfe6dc;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <b style="color:#2E5A47;font-size:14px">📋 Nebenkosten-Abrechnung ${year}</b>
+      <a href="#nk" style="background:#2E5A47;color:#fff;border-radius:99px;padding:6px 14px;font-size:12px;font-weight:600;text-decoration:none">Öffnen →</a>
+    </div>
     <div class="card">
       <h3>EÜR ${year} · ${esc(p.name)} (4-Stufen-Modell)</h3>
       <div class="eursep"></div>

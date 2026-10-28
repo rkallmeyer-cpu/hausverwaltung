@@ -1,5 +1,5 @@
 /* hausbuch. – Service Worker (Offline-Cache) */
-const CACHE = "hausbuch-v3";
+const CACHE = "hausbuch-v5";
 const ASSETS = [
   "./",
   "./index.html",
