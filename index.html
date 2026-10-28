@@ -261,7 +261,7 @@ const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<"
 /* ================= State ================= */
 let state, storageOk = true;
 let year = String(new Date().getFullYear());
-let bkSearch = "", bkFilter = "alle", bkUnit = "alle", bkCat = null; let dashIst = false;
+let bkSearch = "", bkFilter = "alle", bkUnit = "alle", bkCat = null; let dashIst = false; let dashMonat = 0;
 const UMLAGE_TERMS = ["wasser","erdgas","versicherung","nsorgung","nsordung","müll","schornstein"];
 function isUmlage(cat) {
   const c = (cat||"").toLowerCase();
@@ -297,6 +297,72 @@ function loadState() {
 function saveState() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); storageOk = true; }
   catch (e) { storageOk = false; }
+  scheduleSyncPush();
+}
+/* ================= Sync (Coolify-Server) ================= */
+var SYNC_KEY = "hausbuch.sync.v1";
+var syncStartupDone = false, syncTimer = null;
+function loadSyncCfg() {
+  var c = { url: "", token: "", auto: false, lastSync: null };
+  try { var p = JSON.parse(localStorage.getItem(SYNC_KEY) || "{}"); if (p && typeof p === "object") {
+    for (var k in c) if (p[k] !== undefined) c[k] = p[k]; } } catch (e) {}
+  return c;
+}
+function saveSyncCfg(c) { try { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); } catch (e) {} }
+function setSyncCfg(patch) {
+  var c = loadSyncCfg();
+  for (var k in patch) c[k] = patch[k];
+  saveSyncCfg(c);
+  toast("Sync-Einstellungen gespeichert");
+}
+async function syncFetchState(cfg) {
+  var r = await fetch(cfg.url.replace(/\/+$/, "") + "/state", { headers: { "x-sync-token": cfg.token } });
+  if (r.status === 404) return null;
+  if (r.status === 401) throw new Error("Token abgelehnt");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  var j = await r.json();
+  if (!j || !j.data || !Array.isArray(j.data.projects)) throw new Error("Ungültige Server-Antwort");
+  return j;
+}
+async function syncSendState(cfg, data) {
+  var stamp = new Date().toISOString();
+  var payload = { data: Object.assign({}, data, { lastModified: stamp }), lastModified: stamp,
+    device: /Mobi|Android/i.test(navigator.userAgent) ? "Mobil" : "PC" };
+  var r = await fetch(cfg.url.replace(/\/+$/, "") + "/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-sync-token": cfg.token },
+    body: JSON.stringify(payload)
+  });
+  if (r.status === 401) throw new Error("Token abgelehnt");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  cfg.lastSync = new Date().toISOString();
+  saveSyncCfg(cfg);
+  return stamp;
+}
+function scheduleSyncPush() {
+  var cfg = loadSyncCfg();
+  if (!cfg.auto || !cfg.url || !cfg.token || !syncStartupDone) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(function () { syncSendState(cfg, state).catch(function () {}); }, 4000);
+}
+async function syncUploadNow() {
+  var cfg = loadSyncCfg();
+  if (!cfg.url || !cfg.token) { toast("Bitte Server-Adresse und Token eintragen"); return; }
+  try { await syncSendState(cfg, state); route(); toast("Lokaler Stand hochgeladen ✓"); }
+  catch (e) { toast("Hochladen fehlgeschlagen: " + e.message); }
+}
+async function syncDownloadNow() {
+  var cfg = loadSyncCfg();
+  if (!cfg.url || !cfg.token) { toast("Bitte Server-Adresse und Token eintragen"); return; }
+  try {
+    var server = await syncFetchState(cfg);
+    if (!server) { toast("Auf dem Server liegt noch kein Stand"); return; }
+    var when = new Date(server.lastModified).toLocaleString("de-DE");
+    if (!confirm("Server-Stand vom " + when + " laden? Ersetzt den lokalen Stand auf diesem Gerät.")) return;
+    state = server.data;
+    state.activeProjectId = state.activeProjectId || state.projects[0].id;
+    saveState(); renderChrome(); route(); toast("Server-Stand geladen ✓");
+  } catch (e) { toast("Laden fehlgeschlagen: " + e.message); }
 }
 const project = () => state.projects.find(p => p.id === state.activeProjectId) || state.projects[0];
 const years = () => {
@@ -367,10 +433,10 @@ function renderDashboard(el) {
   const bk = p.bookings.filter(b => yearOf(b.date) === year);
   const today = new Date();
   const curY = today.getFullYear();
-  const lastD = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const cutoff = year < curY ? year+"-12-31" : year === curY
-    ? year+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(lastD).padStart(2,"0")
-    : year+"-01-01";
+  const autoM = year < curY ? 12 : Number(year) === curY ? today.getMonth()+1 : 1;
+  const mon = dashMonat > 0 ? Number(dashMonat) : autoM;
+  const lastD = new Date(Number(year), mon, 0).getDate();
+  const cutoff = year+"-"+String(mon).padStart(2,"0")+"-"+String(lastD).padStart(2,"0");
   const bkIst = dashIst ? bk.filter(b => b.date <= cutoff) : bk;
   const future = bk.filter(b => b.date > cutoff);
   const futEin = future.filter(b=>b.type==="einnahme").reduce((s,b)=>s+b.amount,0);
@@ -416,9 +482,15 @@ function renderDashboard(el) {
     ${storageOk ? "" : `<div class="storage-banner">⚠️ Speicherung blockiert – Daten gelten nur für diese Sitzung. Nutze <b>Backup exportieren</b> in den Einstellungen!</div>`}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em">Kennzahlen</span>
-      <span style="display:flex;background:#f1f5f4;border-radius:99px;padding:2px">
-        <button style="${tog(!dashIst)}" onclick="dashIst=false;route()">Gesamtjahr</button>
-        <button style="${tog(dashIst)}" onclick="dashIst=true;route()">Ist bis Monatsende</button>
+      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <span style="display:flex;background:#f1f5f4;border-radius:99px;padding:2px">
+          <button style="${tog(!dashIst)}" onclick="dashIst=false;route()">Gesamtjahr</button>
+          <button style="${tog(dashIst)}" onclick="dashIst=true;route()">Ist bis …</button>
+        </span>
+        ${dashIst ? `<select onchange="dashMonat=Number(this.value);route()" title="Stichtag: 1.1. bis Ende des gewählten Monats"
+          style="border-radius:99px;border:1px solid #e2e8f0;background:#fff;padding:5px 8px;font-size:12px;font-weight:600;color:#2E5A47;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+          ${MONTHS.map((m,i)=>`<option value="${i+1}" ${(dashMonat>0?Number(dashMonat):autoM)===i+1?"selected":""}>bis Ende ${m}</option>`).join("")}
+        </select>` : ""}
       </span>
     </div>
     <div class="cards">
@@ -969,6 +1041,26 @@ function renderSettings(el) {
       </div>
     </div>
     <div class="card" style="padding:16px">
+      <h3 style="padding:0 0 10px">☁️ Sync – zentraler Server (Coolify)</h3>
+      <p class="smallhint" style="margin-bottom:10px">Optional: gleicher Datenstand auf allen Geräten
+        (Handy + PC). Server-Adresse und Token wie auf deinem Server eingestellt.</p>
+      <div class="field"><input id="sync-url" type="url" inputmode="url" autocapitalize="off" autocomplete="off"
+        placeholder="https://sync.deine-domain.de" value="${esc(loadSyncCfg().url)}"
+        onchange="setSyncCfg({ url: this.value.trim() })"></div>
+      <div class="field"><input id="sync-token" type="password" autocomplete="off" placeholder="Sync-Token"
+        value="${esc(loadSyncCfg().token)}" onchange="setSyncCfg({ token: this.value })"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer">
+        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--green)"
+          ${loadSyncCfg().auto ? "checked" : ""} onchange="setSyncCfg({ auto: this.checked })">
+        Automatisch synchronisieren (nach jeder Änderung)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <button class="btn" onclick="syncUploadNow()">⬆ Jetzt hochladen</button>
+        <button class="btn outline" onclick="syncDownloadNow()">⬇ Server-Stand laden</button>
+      </div>
+      ${loadSyncCfg().lastSync ? `<p class="smallhint" style="margin-top:8px">Letzte Synchronisierung:
+        ${new Date(loadSyncCfg().lastSync).toLocaleString("de-DE")}</p>` : ""}
+    </div>
+    <div class="card" style="padding:16px">
       <h3 style="padding:0 0 10px">CSV-Import aus Excel</h3>
       <p class="smallhint" style="margin-bottom:8px">
         Format: <code>Datum;Typ;Betrag;Kategorie;Vermerk;Einheit;Steuer-Status</code> · Semikolon-getrennt ·
@@ -983,7 +1075,7 @@ function renderSettings(el) {
         (die eingebetteten Buchungen aus der Migration werden wiederhergestellt).</p>
       <button class="btn danger" onclick="resetAll()">Zurücksetzen …</button>
     </div>
-    <p class="smallhint" style="text-align:center">hausbuch. · alle Daten bleiben lokal auf deinem Gerät</p>`;
+    <p class="smallhint" style="text-align:center">hausbuch. · Daten liegen lokal auf deinem Gerät – bei aktivem Sync zusätzlich zentral auf deinem Server</p>`;
 }
 function exportBackup() {
   const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), data: state })],
@@ -1065,6 +1157,27 @@ window.addEventListener("hashchange", route);
 loadState();
 if (!years().includes(year)) { year = years()[0]; }
 route();
+/* ---- Sync (Coolify-Server): Start-Abgleich ---- */
+(async function syncStartup() {
+  var cfg = loadSyncCfg();
+  if (!cfg.url || !cfg.token) { syncStartupDone = true; return; }
+  try {
+    var server = await syncFetchState(cfg);
+    var localStamp = state.lastModified || "";
+    if (!server) {
+      await syncSendState(cfg, state);
+      toast("Sync: Erst-Stand zum Server hochgeladen");
+    } else if ((server.lastModified || "") > localStamp) {
+      state = server.data;
+      state.activeProjectId = state.activeProjectId || state.projects[0].id;
+      saveState(); renderChrome(); route();
+      toast("Sync: Neueren Stand vom Server geladen");
+    } else if (cfg.auto) {
+      await syncSendState(cfg, state);
+    }
+  } catch (e) { toast("Sync beim Start fehlgeschlagen: " + e.message); }
+  syncStartupDone = true;
+})();
 /* ---- PWA-Installation (Android/Chrome) ---- */
 var deferredInstall = null;
 window.addEventListener("beforeinstallprompt", (e) => {
